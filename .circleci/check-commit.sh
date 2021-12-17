@@ -17,15 +17,15 @@ git config submodule.vlsi/hammer-cadence-plugins.update none
 git config submodule.vlsi/hammer-mentor-plugins.update none
 git config submodule.vlsi/hammer-synopsys-plugins.update none
 
-# initialize submodules and get the hashes
-git submodule update --init
-status=$(git submodule status)
-
 all_names=()
 
 
 search_submodule() {
     echo "Running check on submodule $submodule in $dir"
+    # Initialize submodule and get the hashes
+    git config --unset submodule.$dir/$submodule.shallow || :
+    git submodule update --init $dir/$submodule
+    status=$(git submodule status)
     hash=$(echo "$status" | grep "$dir.*$submodule " | awk '{print$1}' | grep -o "[[:alnum:]]*")
     for branch in "${branches[@]}"
     do
@@ -90,7 +90,7 @@ else
 fi
 search
 
-submodules=("DRAMSim2" "axe" "barstools" "chisel-testers" "dsptools" "rocket-dsp-utils" "firrtl-interpreter" "torture" "treadle")
+submodules=("DRAMSim2" "axe" "barstools" "chisel-testers" "dsptools" "rocket-dsp-utils" "torture")
 dir="tools"
 if [ "$CIRCLE_BRANCH" == "master" ] || [ "$CIRCLE_BRANCH" == "dev" ]
 then
