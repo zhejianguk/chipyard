@@ -18,7 +18,9 @@ HELP_COMPILATION_VARIABLES += \
 "   EXTRA_SIM_LDFLAGS      = additional LDFLAGS for building simulators" \
 "   EXTRA_SIM_SOURCES      = additional simulation sources needed for simulator" \
 "   EXTRA_SIM_REQS         = additional make requirements to build the simulator" \
-"   ENABLE_SBT_THIN_CLIENT = if set, use sbt's experimental thin client (works best with sbtn or sbt script)"
+"   ENABLE_SBT_THIN_CLIENT = if set, use sbt's experimental thin client (works best with sbtn or sbt script)" \
+"   EXTRA_CHISEL_OPTIONS   = additional options to pass to the Chisel compiler" \
+"   EXTRA_FIRRTL_OPTIONS   = additional options to pass to the FIRRTL compiler"
 
 EXTRA_GENERATOR_REQS ?= $(BOOTROM_TARGETS)
 EXTRA_SIM_CXXFLAGS   ?=
@@ -29,7 +31,8 @@ EXTRA_SIM_REQS       ?=
 #----------------------------------------------------------------------------
 HELP_SIMULATION_VARIABLES += \
 "   EXTRA_SIM_FLAGS        = additional runtime simulation flags (passed within +permissive)" \
-"   NUMACTL                = set to '1' to wrap simulator in the appropriate numactl command"
+"   NUMACTL                = set to '1' to wrap simulator in the appropriate numactl command" \
+"   BREAK_SIM_PREREQ       = when running a binary, doesn't rebuild RTL on source changes"
 
 EXTRA_SIM_FLAGS ?=
 NUMACTL         ?= 0
@@ -54,6 +57,7 @@ include $(base_dir)/generators/cva6/cva6.mk
 include $(base_dir)/generators/tracegen/tracegen.mk
 include $(base_dir)/generators/nvdla/nvdla.mk
 include $(base_dir)/tools/dromajo/dromajo.mk
+include $(base_dir)/tools/torture.mk
 
 #########################################################################################
 # Prerequisite lists
@@ -107,7 +111,8 @@ generator_temp: $(SCALA_SOURCES) $(sim_files) $(EXTRA_GENERATOR_REQS)
 		--target-dir $(build_dir) \
 		--name $(long_name) \
 		--top-module $(MODEL_PACKAGE).$(MODEL) \
-		--legacy-configs $(CONFIG_PACKAGE):$(CONFIG))
+		--legacy-configs $(CONFIG_PACKAGE):$(CONFIG) \
+		$(EXTRA_CHISEL_OPTIONS))
 
 .PHONY: firrtl
 firrtl: $(FIRRTL_FILE)
@@ -128,7 +133,25 @@ $(TOP_TARGETS) $(HARNESS_TARGETS): firrtl_temp
 	@echo "" > /dev/null
 
 firrtl_temp: $(FIRRTL_FILE) $(ANNO_FILE) $(VLOG_SOURCES)
-	$(call run_scala_main,tapeout,barstools.tapeout.transforms.GenerateTopAndHarness,-o $(TOP_FILE) -tho $(HARNESS_FILE) -i $(FIRRTL_FILE) --syn-top $(TOP) --harness-top $(VLOG_MODEL) -faf $(ANNO_FILE) -tsaof $(TOP_ANNO) -tdf $(sim_top_blackboxes) -tsf $(TOP_FIR) -thaof $(HARNESS_ANNO) -hdf $(sim_harness_blackboxes) -thf $(HARNESS_FIR) $(REPL_SEQ_MEM) $(HARNESS_CONF_FLAGS) -td $(build_dir) -ll $(FIRRTL_LOGLEVEL)) && touch $(sim_top_blackboxes) $(sim_harness_blackboxes)
+	$(call run_scala_main,tapeout,barstools.tapeout.transforms.GenerateTopAndHarness,\
+		--output-file $(TOP_FILE) \
+		--harness-o $(HARNESS_FILE) \
+		--input-file $(FIRRTL_FILE) \
+		--syn-top $(TOP) \
+		--harness-top $(VLOG_MODEL) \
+		--annotation-file $(ANNO_FILE) \
+		--top-anno-out $(TOP_ANNO) \
+		--top-dotf-out $(sim_top_blackboxes) \
+		--top-fir $(TOP_FIR) \
+		--harness-anno-out $(HARNESS_ANNO) \
+		--harness-dotf-out $(sim_harness_blackboxes) \
+		--harness-fir $(HARNESS_FIR) \
+		$(REPL_SEQ_MEM) \
+		$(HARNESS_CONF_FLAGS) \
+		--target-dir $(build_dir) \
+		--log-level $(FIRRTL_LOGLEVEL) \
+		$(EXTRA_FIRRTL_OPTIONS))
+	touch $(sim_top_blackboxes) $(sim_harness_blackboxes)
 # DOC include end: FirrtlCompiler
 
 # This file is for simulation only. VLSI flows should replace this file with one containing hard SRAMs
@@ -152,7 +175,7 @@ harness_macro_temp: $(HARNESS_SMEMS_CONF) | top_macro_temp
 # remove duplicate files and headers in list of simulation file inputs
 ########################################################################################
 $(sim_common_files): $(sim_files) $(sim_top_blackboxes) $(sim_harness_blackboxes)
-	awk '{print $1;}' $^ | sort -u | grep -v '.*\.\(svh\|h\)$$' > $@
+	sort -u $^ | grep -v '.*\.\(svh\|h\)$$' > $@
 
 #########################################################################################
 # helper rule to just make verilog files
@@ -170,16 +193,22 @@ ifeq (,$(BINARY))
 	$(error BINARY variable is not set. Set it to the simulation binary)
 endif
 
+# allow you to override sim prereq
+ifeq (,$(BREAK_SIM_PREREQ))
+SIM_PREREQ = $(sim)
+SIM_DEBUG_PREREQ = $(sim_debug)
+endif
+
 # run normal binary with hardware-logged insn dissassembly
-run-binary: $(output_dir) $(sim) check-binary
+run-binary: $(output_dir) $(SIM_PREREQ) check-binary
 	(set -o pipefail && $(NUMA_PREFIX) $(sim) $(PERMISSIVE_ON) $(SIM_FLAGS) $(EXTRA_SIM_FLAGS) $(SEED_FLAG) $(VERBOSE_FLAGS) $(PERMISSIVE_OFF) $(BINARY) </dev/null 2> >(spike-dasm > $(sim_out_name).out) | tee $(sim_out_name).log)
 
 # run simulator as fast as possible (no insn disassembly)
-run-binary-fast: $(output_dir) $(sim) check-binary
+run-binary-fast: $(output_dir) $(SIM_PREREQ) check-binary
 	(set -o pipefail && $(NUMA_PREFIX) $(sim) $(PERMISSIVE_ON) $(SIM_FLAGS) $(EXTRA_SIM_FLAGS) $(SEED_FLAG) $(PERMISSIVE_OFF) $(BINARY) </dev/null | tee $(sim_out_name).log)
 
 # run simulator with as much debug info as possible
-run-binary-debug: $(output_dir) $(sim_debug) check-binary
+run-binary-debug: $(output_dir) $(SIM_DEBUG_PREREQ) check-binary
 	(set -o pipefail && $(NUMA_PREFIX) $(sim_debug) $(PERMISSIVE_ON) $(SIM_FLAGS) $(EXTRA_SIM_FLAGS) $(SEED_FLAG) $(VERBOSE_FLAGS) $(WAVEFORM_FLAG) $(PERMISSIVE_OFF) $(BINARY) </dev/null 2> >(spike-dasm > $(sim_out_name).out) | tee $(sim_out_name).log)
 
 run-fast: run-asm-tests-fast run-bmark-tests-fast
@@ -191,19 +220,19 @@ $(binary_hex): $(output_dir) $(BINARY)
 	$(base_dir)/scripts/smartelf2hex.sh $(BINARY) > $(binary_hex)
 
 run-binary-hex: check-binary
-run-binary-hex: $(output_dir) $(sim) $(binary_hex)
+run-binary-hex: $(output_dir) $(SIM_PREREQ) $(binary_hex)
 run-binary-hex: run-binary
 run-binary-hex: override LOADMEM_ADDR = 80000000
 run-binary-hex: override LOADMEM = $(binary_hex)
 run-binary-hex: override SIM_FLAGS += +loadmem=$(LOADMEM) +loadmem_addr=$(LOADMEM_ADDR)
 run-binary-debug-hex: check-binary
-run-binary-debug-hex: $(output_dir) $(sim) $(binary_hex)
+run-binary-debug-hex: $(output_dir) $(SIM_DEBUG_REREQ) $(binary_hex)
 run-binary-debug-hex: run-binary-debug
 run-binary-debug-hex: override LOADMEM_ADDR = 80000000
 run-binary-debug-hex: override LOADMEM = $(binary_hex)
 run-binary-debug-hex: override SIM_FLAGS += +loadmem=$(LOADMEM) +loadmem_addr=$(LOADMEM_ADDR)
 run-binary-fast-hex: check-binary
-run-binary-fast-hex: $(output_dir) $(sim) $(binary_hex)
+run-binary-fast-hex: $(output_dir) $(SIM_PREREQ) $(binary_hex)
 run-binary-fast-hex: run-binary-fast
 run-binary-fast-hex: override LOADMEM_ADDR = 80000000
 run-binary-fast-hex: override LOADMEM = $(binary_hex)
@@ -218,10 +247,10 @@ $(output_dir):
 $(output_dir)/%: $(RISCV)/riscv64-unknown-elf/share/riscv-tests/isa/% $(output_dir)
 	ln -sf $< $@
 
-$(output_dir)/%.run: $(output_dir)/% $(sim)
+$(output_dir)/%.run: $(output_dir)/% $(SIM_PREREQ)
 	(set -o pipefail && $(NUMA_PREFIX) $(sim) $(PERMISSIVE_ON) $(SIM_FLAGS) $(EXTRA_SIM_FLAGS) $(SEED_FLAG) $(PERMISSIVE_OFF) $< </dev/null | tee $<.log) && touch $@
 
-$(output_dir)/%.out: $(output_dir)/% $(sim)
+$(output_dir)/%.out: $(output_dir)/% $(SIM_PREREQ)
 	(set -o pipefail && $(NUMA_PREFIX) $(sim) $(PERMISSIVE_ON) $(SIM_FLAGS) $(EXTRA_SIM_FLAGS) $(SEED_FLAG) $(VERBOSE_FLAGS) $(PERMISSIVE_OFF) $< </dev/null 2> >(spike-dasm > $@) | tee $<.log)
 
 #########################################################################################
