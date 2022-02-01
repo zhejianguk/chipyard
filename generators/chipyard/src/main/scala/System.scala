@@ -7,6 +7,7 @@ package chipyard
 
 import chisel3._
 
+import guardiancouncil._
 import freechips.rocketchip.config.{Parameters, Field}
 import freechips.rocketchip.subsystem._
 import freechips.rocketchip.tilelink._
@@ -31,6 +32,8 @@ class ChipyardSystem(implicit p: Parameters) extends ChipyardSubsystem
 
   val bootROM  = p(BootROMLocated(location)).map { BootROM.attach(_, this, CBUS) }
   val maskROMs = p(MaskROMLocated(location)).map { MaskROM.attach(_, this, CBUS) }
+  // val ghmcore = p(BootROMLocated(location)).map { BootROMM.attach(_, this, CBUS) }
+  // val ghmcore = p(GHMLocated(location)).map { GHMCore.attach(_, this) }
   override lazy val module = new ChipyardSystemModule(this)
 }
 
