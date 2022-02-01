@@ -8,7 +8,6 @@ import freechips.rocketchip.diplomacy.{AsynchronousCrossing}
 // --------------
 
 class RocketConfig extends Config(
-  new chipyard.example.WithGCD(useAXI4=false, useBlackBox=false) ++  // Use GCD Chisel, connect Tilelink
   new freechips.rocketchip.subsystem.WithNBigCores(1) ++         // single rocket-core
   new chipyard.config.AbstractConfig)
 
