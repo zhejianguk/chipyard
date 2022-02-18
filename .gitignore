@@ -20,3 +20,6 @@ tags
 env-riscv-tools.sh
 env-esp-tools.sh
 .bsp/
+.metals/*
+.vscode/*
+./generators/ibex/*
