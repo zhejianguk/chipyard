@@ -1,5 +1,6 @@
 package chipyard
 
+import freechips.rocketchip.guardiancouncil._
 import freechips.rocketchip.config.{Config}
 import freechips.rocketchip.diplomacy.{AsynchronousCrossing}
 
@@ -8,7 +9,8 @@ import freechips.rocketchip.diplomacy.{AsynchronousCrossing}
 // --------------
 
 class RocketConfig extends Config(
-  new freechips.rocketchip.subsystem.WithNBigCores(1) ++         // single rocket-core
+  new freechips.rocketchip.subsystem.WithNBigCores(2) ++         // single rocket-core
+  new WithGHE ++
   new chipyard.config.AbstractConfig)
 
 class TinyRocketConfig extends Config(
