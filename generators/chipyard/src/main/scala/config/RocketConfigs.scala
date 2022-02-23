@@ -9,7 +9,7 @@ import freechips.rocketchip.diplomacy.{AsynchronousCrossing}
 // --------------
 
 class RocketConfig extends Config(
-  new freechips.rocketchip.subsystem.WithNBigCores(2) ++         // single rocket-core
+  new freechips.rocketchip.subsystem.WithNBigCores(3) ++         // single rocket-core
   new WithGHE ++
   new chipyard.config.AbstractConfig)
 
