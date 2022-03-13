@@ -1,21 +1,32 @@
 #include <stdio.h>
 #include "rocc.h"
 #include "spin_lock.h"
+#include "gh_sbsys.h"
 #include "ghe.h"
 
 
-#define TRUE 0x01
-#define FALSE 0x00
 
-int uart_lock = 0;
-int *uart_lock_p = &uart_lock;
 
-void task_core1(uint64_t core_id);
-void task_core2(uint64_t core_id);
+
+struct gh_sbsys gh = {.big.exec_complete = FALSE,
+                      .big.exec_start = TRUE,
+                      .little.r_counter = NUM_CHECKERS,
+                      .little.counter_lock = FALSE,
+                      .uart_lock = FALSE, 
+                      };
+
+void task_PerfCounter(uint64_t core_id);
+
 
 /* Core_0 thread */
 int main(void)
 {
+  lock_release(&gh.uart_lock);
+  // printf("Big0: Test is now start \r\n");
+  lock_release(&gh.little.counter_lock);
+  gh.big.exec_start = TRUE;
+  ght_start ();
+
 
 __asm__(
         "li   t0,   0x81000000;"         // write pointer
@@ -43,83 +54,90 @@ __asm__(
         "addi t2,   t2,   4;"
         "blt  t0,   a5,  .loop_load;");
 
-  while(1){}
+
+  /* Post execution */
+  ght_stop();
+  gh.big.exec_complete = TRUE;
+  while(gh.little.r_counter != 0){
+    // Idle;
+  }
+  lock_release(&gh.uart_lock);
+  // printf("Big0: All test is done! \r\n");
+  lock_release(&gh.little.counter_lock);
   return 0;
 }
 
 /* Core_1 & 2 thread */
 int __main(void)
 {
-  
   uint64_t Hart_id = 0;
   asm volatile ("csrr %0, mhartid"  : "=r"(Hart_id));
 
-  if (Hart_id == 0x01){
-    task_core1(Hart_id);
+  switch (Hart_id){
+      case 0x01:
+        task_PerfCounter(Hart_id);
+      break;
+
+      case 0x02:
+        task_PerfCounter(Hart_id);
+      break;
+
+      case 0x03:
+        task_PerfCounter(Hart_id);
+      break;
+
+      case 0x04:
+        task_PerfCounter(Hart_id);
+      break;
+
+      case 0x05:
+        task_PerfCounter(Hart_id);
+      break;
+
+      case 0x06:
+        task_PerfCounter(Hart_id);
+      break;
+
+      case 0x07:
+        task_PerfCounter(Hart_id);
+      break;
+
+      default:
+      break;
   }
-
-  if (Hart_id == 0x02){
-    task_core2(Hart_id);
-  }
-
-  while(1){
-
-  }
-
+  
+  idle();
   return 0;
 }
 
-void task_core1(uint64_t core_id) {
-  uint64_t EOB = FALSE;
-  uint64_t Buffer_Func_Opcode[64] = {0x0};
-  uint64_t Buffer_data[64] = {0x0}; 
+void task_PerfCounter(uint64_t core_id) {
+  uint64_t Func_Opcode = 0x0;
   int GHE_ptr = 0;
+  int perfc = 0;
 
-  while (EOB != TRUE) {
-    while (ghe_status() == GHE_EMPTY){
-    }
-    Buffer_Func_Opcode[GHE_ptr] = ghe_top_func_opcode();
-    Buffer_data[GHE_ptr] = ghe_pop_data();
-    GHE_ptr = GHE_ptr + 1;
-    // Check if end of monitoring 
-    if (GHE_ptr == 64){
-      EOB = TRUE;
+  while (gh.big.exec_start != TRUE) {
+    // idle;
+  }
+
+  /* Operating commits */
+  while (gh.big.exec_complete != TRUE) {
+    while (ghe_status() != GHE_EMPTY)
+    {
+      ROCC_INSTRUCTION_DSS (1, Func_Opcode, 0, 0, 0x03);
+      if ((Func_Opcode & 0x7F) == 0x03) {
+        perfc = perfc + 1;
+      }
     }
   }
 
-  lock_acquire(uart_lock_p);
-  printf("Packetets recieved from Hart %x. \n", core_id);
-  for (int j = 0; j < 64; j++) {
-    printf("Packet: %d is Func+Opcode: %lx Data: %lx \r\n", j, Buffer_Func_Opcode[j], Buffer_data[j]);
-  }
-  lock_release(uart_lock_p);
+  /* Report results  */
+  lock_acquire(&gh.uart_lock);
+  // printf("C%x: Performance Counter = %x. \n", core_id, perfc);
+  lock_release(&gh.uart_lock);
 
+  lock_acquire(&gh.little.counter_lock);
+  gh.little.r_counter = gh.little.r_counter - 1;
+  lock_release(&gh.little.counter_lock);
 }
 
 
-void task_core2(uint64_t core_id) {
-  uint64_t EOB = FALSE;
-  uint64_t Buffer_Func_Opcode[64] = {0x0};
-  uint64_t Buffer_data[64] = {0x0}; 
-  int GHE_ptr = 0;
-
-  while (EOB != TRUE) {
-    while (ghe_status() == GHE_EMPTY){
-    }
-    Buffer_data[GHE_ptr] = ghe_top_data();
-    Buffer_Func_Opcode[GHE_ptr] = ghe_pop_func_opcode();
-    GHE_ptr = GHE_ptr + 1;
-    // Check if end of monitoring 
-    if (GHE_ptr == 64){
-      EOB = TRUE;
-    }
-  }
-
-  lock_acquire(uart_lock_p);
-  printf("Packetets recieved from Hart %x. \n", core_id);
-  for (int j = 0; j < 64; j++) {
-    printf("Packet: %d is Func+Opcode: %lx Data: %lx \r\n", j, Buffer_Func_Opcode[j], Buffer_data[j]);
-  }
-  lock_release(uart_lock_p);
-  
-}
