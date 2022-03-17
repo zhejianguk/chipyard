@@ -2,7 +2,7 @@
 
 #define TRUE 0x01
 #define FALSE 0x00
-#define NUM_CHECKERS 7
+#define NUM_CHECKERS 1
 #define DEPTH_GHE 256
 
 struct main_core {
