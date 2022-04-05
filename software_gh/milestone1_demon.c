@@ -84,7 +84,23 @@ int __main(void)
       case 0x03:
         task_PerfCounter(Hart_id);
       break;
-    
+
+      case 0x04:
+        task_PerfCounter(Hart_id);
+      break;
+
+      case 0x05:
+        task_PerfCounter(Hart_id);
+      break;
+
+      case 0x06:
+        task_PerfCounter(Hart_id);
+      break;
+
+      case 0x07:
+        task_PerfCounter(Hart_id);
+      break;
+
       default:
       break;
   }
@@ -98,19 +114,18 @@ void task_PerfCounter(uint64_t core_id) {
   uint64_t perfc = 0;
 
   /* Wait for start */
-  while (ght_status() == 0x00){
+  while (ghe_checkght_status() == 0x00){
   };
 
-
   /* Operating */
-  while (ght_status() == 0x01) {
+  while (ghe_checkght_status() == 0x01) {
     while (ghe_status() != GHE_EMPTY)
     {
       // Pop packet
-      ROCC_INSTRUCTION_DSS (1, Func_Opcode, 0, 0, 0x03);
-      if ((Func_Opcode & 0x7F) == 0x03) {
+      ROCC_INSTRUCTION (1, 0x03);
+      // if ((Func_Opcode & 0x7F) == 0x03) {
         perfc = perfc + 1;
-      }
+     //  }
     }
   }
 
