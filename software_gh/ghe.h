@@ -6,8 +6,8 @@
 
 static inline uint64_t ghe_status ()
 {
-  uint64_t status = GHE_EMPTY;
-  ROCC_INSTRUCTION_D (1, status, 0);
+  uint64_t status;
+  ROCC_INSTRUCTION_D (1, status, 0x00);
   return status; 
   // 0b01: empty; 
   // 0b10: full;
@@ -25,13 +25,26 @@ static inline uint64_t ghe_top_func_opcode ()
   return packet;
 }
 
-
 static inline uint64_t ghe_pop_func_opcode ()
 {
   uint64_t packet = 0x00;
   if (ghe_status() != 0x01) {
     ROCC_INSTRUCTION_D (1, packet, 0x03);
   }
+  return packet;
+}
+
+static inline uint64_t ghe_topx_func_opcode ()
+{
+  uint64_t packet;
+  ROCC_INSTRUCTION_D (1, packet, 0x02);
+  return packet;
+}
+
+static inline uint64_t ghe_popx_func_opcode ()
+{
+  uint64_t packet;
+  ROCC_INSTRUCTION_D (1, packet, 0x03);
   return packet;
 }
 

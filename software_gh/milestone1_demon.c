@@ -118,16 +118,28 @@ void task_PerfCounter(uint64_t core_id) {
   };
 
   /* Operating */
+  /* New Method */
+  /*
+  while (ghe_checkght_status() == 0x01) {
+    while ((Func_Opcode = ghe_popx_func_opcode()) != 0x3FF)
+    {
+        perfc = perfc + 1;
+
+    }
+  }
+  */
+
+
+  /* Old Method */
   while (ghe_checkght_status() == 0x01) {
     while (ghe_status() != GHE_EMPTY)
     {
-      // Pop packet
-      ROCC_INSTRUCTION (1, 0x03);
-      // if ((Func_Opcode & 0x7F) == 0x03) {
-        perfc = perfc + 1;
-     //  }
+      ROCC_INSTRUCTION_D (1, Func_Opcode, 0x03);
+      perfc = perfc + 1;
     }
   }
+
+
 
   /* Report results  */
   lock_acquire(&uart_lock);
