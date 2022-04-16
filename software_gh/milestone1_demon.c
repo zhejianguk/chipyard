@@ -13,10 +13,9 @@ int uart_lock;
 int main(void)
 {
   lock_acquire(&uart_lock);
-  printf("Big0: Test is now start \r\n");
+  printf("C0: Test is now start \r\n");
   lock_release(&uart_lock);
   ght_start ();
-
 
 __asm__(
         "li   t0,   0x81000000;"         // write pointer
@@ -52,6 +51,8 @@ __asm__(
         "addi t0,   t0,   4;"
         "addi t2,   t2,   4;"
         "blt  t0,   a5,  .loop_load;");
+
+
 
   /* Post execution */
   while (ght_stop() < 0x0F)
@@ -117,6 +118,8 @@ void task_PerfCounter(uint64_t core_id) {
   while (ghe_checkght_status() == 0x00){
   };
 
+
+
   /* Operating */
   /* New Method */
   /*
@@ -124,11 +127,8 @@ void task_PerfCounter(uint64_t core_id) {
     while ((Func_Opcode = ghe_popx_func_opcode()) != 0x3FF)
     {
         perfc = perfc + 1;
-
     }
-  }
-  */
-
+  }*/
 
   /* Old Method */
   while (ghe_checkght_status() == 0x01) {

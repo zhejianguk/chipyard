@@ -10,7 +10,7 @@ static inline void ght_start ()
 {
   uint64_t set_status = 0x01;
   uint64_t get_status = 0x00;
-  ROCC_INSTRUCTION_DS (1, get_status, set_status, 0x06);
+  ROCC_INSTRUCTION_S (1, set_status, 0x06);
 }
 
 static inline uint64_t ght_stop ()
