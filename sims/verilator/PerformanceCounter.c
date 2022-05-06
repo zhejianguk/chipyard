@@ -72,7 +72,7 @@ int __main(void)
 {
   uint64_t Hart_id = 0;
   asm volatile ("csrr %0, mhartid"  : "=r"(Hart_id));
-
+  
   switch (Hart_id){
       case 0x01:
         task_PerfCounter(Hart_id);
@@ -128,7 +128,9 @@ void task_PerfCounter(uint64_t core_id) {
     {
         perfc = perfc + 1;
     }
-  }*/
+  }
+  */
+
 
   /* Old Method */
   while (ghe_checkght_status() == 0x01) {
