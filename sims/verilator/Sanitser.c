@@ -16,7 +16,7 @@ int main(void)
   lock_acquire(&uart_lock);
   printf("C0: Test is now start!\r\n");
   lock_release(&uart_lock);
-  ght_start ();
+  ght_set_status (0x01);
 
   int n = 100;
   int *ptr = NULL;
@@ -49,11 +49,12 @@ int main(void)
   free(ptr);
 
   /* Post execution */
-  while (ght_stop() < 0x0F)
+  ght_set_status (0x02); // ght: start
+  uint64_t status;
+  while ((status = ght_get_status()) < 0x0F)
   {
 
   }
-  int status = ght_stop();
 
   lock_acquire(&uart_lock);
   printf("All tests are done!\n", status);
@@ -91,19 +92,6 @@ void task_Sanitiser(uint64_t core_id) {
   };
 
 
-
-  /* Operating */
-  /* New Method */
-  /*
-  while (ghe_checkght_status() == 0x01) {
-    while ((Func_Opcode = ghe_popx_func_opcode()) != 0x3FF)
-    {
-        perfc = perfc + 1;
-    }
-  }
-  */
-
-
   /* Old Method */
   while (ghe_checkght_status() == 0x01) {
     while (ghe_status() != GHE_EMPTY)
@@ -114,13 +102,13 @@ void task_Sanitiser(uint64_t core_id) {
       if ((Func_Opcode & 0x7F) == 0X03)
       {
         ROCC_INSTRUCTION_D (1, Packet, 0x05);
-        printf("The loaded address is: %x \r\n ", Packet);
+        // printf("The loaded address is: %x \r\n ", Packet);
       }
 
       if ((Func_Opcode & 0x7F) == 0X23)
       {
         ROCC_INSTRUCTION_D (1, Packet, 0x05);
-        printf("The stored address is: %x \r\n ", Packet);
+        // printf("The stored address is: %x \r\n ", Packet);
       }
       perfc = perfc + 1;
     }

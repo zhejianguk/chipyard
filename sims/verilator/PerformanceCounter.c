@@ -15,7 +15,7 @@ int main(void)
   lock_acquire(&uart_lock);
   printf("C0: Test is now start \r\n");
   lock_release(&uart_lock);
-  ght_start ();
+  ght_set_status (0x01); // ght: start
 
 __asm__(
         "li   t0,   0x81000000;"         // write pointer
@@ -55,14 +55,15 @@ __asm__(
 
 
   /* Post execution */
-  while (ght_stop() < 0x0F)
+  ght_set_status (0x02); // ght: start
+  uint64_t status;
+  while ((status = ght_get_status()) < 0x0F)
   {
 
   }
-  int status = ght_stop();
 
   lock_acquire(&uart_lock);
-  printf("All tests are done!\n", status);
+  printf("All tests are done! Status: %x \r\n", status);
   lock_release(&uart_lock);
   return 0;
 }
@@ -75,30 +76,6 @@ int __main(void)
   
   switch (Hart_id){
       case 0x01:
-        task_PerfCounter(Hart_id);
-      break;
-
-      case 0x02:
-        task_PerfCounter(Hart_id);
-      break;
-
-      case 0x03:
-        task_PerfCounter(Hart_id);
-      break;
-
-      case 0x04:
-        task_PerfCounter(Hart_id);
-      break;
-
-      case 0x05:
-        task_PerfCounter(Hart_id);
-      break;
-
-      case 0x06:
-        task_PerfCounter(Hart_id);
-      break;
-
-      case 0x07:
         task_PerfCounter(Hart_id);
       break;
 

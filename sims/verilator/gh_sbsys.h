@@ -5,23 +5,17 @@
 #define NUM_CHECKERS 3
 #define DEPTH_GHE 256
 
-
-static inline void ght_start ()
+static inline void ght_set_status (uint64_t status)
 {
-  uint64_t set_status = 0x01;
-  uint64_t get_status = 0x00;
-  ROCC_INSTRUCTION_S (1, set_status, 0x06);
+  ROCC_INSTRUCTION_S (1, status, 0x06);
 }
 
-static inline uint64_t ght_stop ()
+static inline uint64_t ght_get_status ()
 {
-  uint64_t set_status = 0x02;
-  uint64_t get_status = 0x00;
-
-  ROCC_INSTRUCTION_DS (1, get_status, set_status, 0x06);
+  uint64_t get_status;
+  ROCC_INSTRUCTION_D (1, get_status, 0x06);
   return get_status;
 }
-
 
 
 void idle()
