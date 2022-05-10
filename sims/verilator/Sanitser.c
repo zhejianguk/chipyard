@@ -40,9 +40,6 @@ int main(void)
     sum = sum + *(ptr + i);
   }
 
-
-    
-
   printf("C0: Sum = %d \r\n", sum);
   
   // deallocating the memory
