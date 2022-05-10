@@ -1,4 +1,5 @@
 *
+!compile.sh
 !*.c
 !*.h
 !.gitignore
