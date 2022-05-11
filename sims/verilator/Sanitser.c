@@ -9,10 +9,18 @@
 int uart_lock;
 void task_Sanitiser(uint64_t core_id);
 
+char* shadow_mem;
 
 /* Core_0 thread */
 int main(void)
 {
+  // shadow memory
+  shadow_mem = shadow_malloc(32*1024*1024*sizeof(char));
+  if(shadow_mem == NULL) {
+    printf("C0: Error! memory not allocated.");
+    exit(0);
+  }
+
   lock_acquire(&uart_lock);
   printf("C0: Test is now start!\r\n");
   lock_release(&uart_lock);
@@ -56,6 +64,9 @@ int main(void)
   lock_acquire(&uart_lock);
   printf("All tests are done!\n", status);
   lock_release(&uart_lock);
+  
+  // shadow memory
+  shadow_free(shadow_mem);
   return 0;
 }
 

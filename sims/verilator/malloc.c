@@ -515,6 +515,16 @@ extern "C" {
 #define public_iCOMALLOc independent_comalloc
 #endif /* USE_DL_PREFIX */
 
+//===== GuardianCouncil Function: Start ====//
+#define GUARDIANCOUNCIL 1
+
+#ifdef GUARDIANCOUNCIL
+#define shadow_mALLOc shadow_malloc
+#define shadow_fREe   shadow_free
+Void_t* shadow_mALLOc(size_t);
+void    shadow_fREe(Void_t*);
+#endif
+//===== GuardianCouncil Function: End   ====//
 
 /*
   HAVE_MEMCPY should be defined if you are not otherwise using
@@ -1456,9 +1466,33 @@ static pthread_mutex_t mALLOC_MUTEx = PTHREAD_MUTEX_INITIALIZER;
 
 #endif
 
+//===== GuardianCouncil Function: Start ====//
+#ifdef GUARDIANCOUNCIL
+Void_t* shadow_mALLOc(size_t bytes) {
+  Void_t* m;
+  if (MALLOC_PREACTION != 0) {
+    return 0;
+  }
+  m = mALLOc(bytes);
+  if (MALLOC_POSTACTION != 0) {
+  }
+  return m;
+}
+
+
+void shadow_fREe(Void_t* m) {
+  if (MALLOC_PREACTION != 0) {
+    return;
+  }
+  fREe(m);
+  if (MALLOC_POSTACTION != 0) {
+  }
+}
+#endif
+//===== GuardianCouncil Function: End   ====//
+
 Void_t* public_mALLOc(size_t bytes) {
   Void_t* m;
-  printf ("Public malloc is running!\r\n");
   if (MALLOC_PREACTION != 0) {
     return 0;
   }
@@ -1469,7 +1503,6 @@ Void_t* public_mALLOc(size_t bytes) {
 }
 
 void public_fREe(Void_t* m) {
-  printf ("Public free is running!\r\n");
   if (MALLOC_PREACTION != 0) {
     return;
   }

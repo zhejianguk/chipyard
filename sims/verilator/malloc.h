@@ -56,6 +56,15 @@ void*  malloc(size_t);
 void*  dlmalloc(size_t);
 #endif
 
+//===== GuardianCouncil Function: Start ====//
+#define GUARDIANCOUNCIL 1
+
+#ifdef GUARDIANCOUNCIL
+void*  shadow_malloc(size_t);
+void   shadow_free(void*);
+#endif
+//===== GuardianCouncil Function: End   ====//
+
 /*
   free(void* p)
   Releases the chunk of memory pointed to by p, that had been previously
