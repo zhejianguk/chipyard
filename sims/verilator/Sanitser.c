@@ -57,11 +57,11 @@ int main(void)
   free(ptr);
 
   // Use after free
-  /*
   lock_acquire(&uart_lock);
   printf("C0: Now test use after free !\r\n", sum);
   lock_release(&uart_lock);
   
+  /*
   asm volatile(
                 "li   t0,   0x82005000;"         // write pointer
                 "li   t1,   0x55555000;"         // data
@@ -74,7 +74,7 @@ int main(void)
                 "addi t1,   t1,   1;"            // data + 1
                 "addi t0,   t0,   4;"            // write address + 4
                 "blt  t0,   a5,  .loop_store;");
-  */            
+  */          
   //=================== Post execution ===================//
   ght_set_status (0x02); // ght: stop
   while (ght_get_status() < 0x0F) {

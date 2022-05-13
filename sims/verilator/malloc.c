@@ -3697,6 +3697,7 @@ void fREe(mem) Void_t* mem;
 
   mchunkptr       p;           /* chunk corresponding to mem */
   INTERNAL_SIZE_T size;        /* its size */
+  INTERNAL_SIZE_T chunksize;   /* chunk size */
   mfastbinptr*    fb;          /* associated fastbin */
   mchunkptr       nextchunk;   /* next contiguous chunk */
   INTERNAL_SIZE_T nextsize;    /* its size */
@@ -3705,12 +3706,17 @@ void fREe(mem) Void_t* mem;
   mchunkptr       bck;         /* misc temp for linking */
   mchunkptr       fwd;         /* misc temp for linking */
 
+
+  // printf ("Free from address %x;\r\n", mem);  
   /* free(0) has no effect */
   if (mem != 0) {
     p = mem2chunk(mem);
     size = chunksize(p);
 
     check_inuse_chunk(p);
+
+    chunksize = chunksize(p);
+    // printf ("p = %x;size = %x;\r\n", p, chunksize);
 
     /*
       If eligible, place chunk on a fastbin so it can be found
@@ -3834,8 +3840,8 @@ void fREe(mem) Void_t* mem;
       munmap((char*)p - offset, size + offset);
 #endif
     }
-    // printf("poision size is: %x\r\n", size);
-    poison(p,size);
+    // printf("poision size is: %x\r\n", chunksize);
+    poison(p,chunksize);
   }
 }
 
