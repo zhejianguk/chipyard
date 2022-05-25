@@ -1,14 +1,16 @@
 source_file="Null"
 clean_files="Null"
 object_file="Null"
+malloc_flag="Null"
 null="Null"
 
 # Input flags
-while getopts c:r:o: flag
+while getopts c:r:o:m: flag
 do
 	case "${flag}" in
 		o) object_file=${OPTARG};;
 		c) source_file=${OPTARG};;
+		m) malloc_flag=${OPTARG};;
 		r) clean_files=${OPTARG};;
 	esac
 done
@@ -35,8 +37,15 @@ if [[ $source_file != $null ]]; then
 	fi
 
 	riscv64-unknown-elf-gcc -fno-common -fno-builtin-printf -specs=htif_nano.specs -march=rv64imafd -O3 -c $source_file.c
-	riscv64-unknown-elf-gcc -fno-common -fno-builtin-printf -specs=htif_nano.specs -march=rv64imafd $source_file.o -O3 -o $source_file.riscv
-	# riscv64-unknown-elf-gcc -fno-common -fno-builtin-printf -specs=htif_nano.specs -march=rv64imafd -static -Wl,--allow-multiple-definition -DUSE_PUBLIC_MALLOC_WRAPPERS ./malloc.o $source_file.o -O3 -o $source_file.riscv
+	
+	if [[ $malloc_flag != $null ]]; then
+		riscv64-unknown-elf-gcc -fno-common -fno-builtin-printf -specs=htif_nano.specs -march=rv64imafd -static -Wl,--allow-multiple-definition -DUSE_PUBLIC_MALLOC_WRAPPERS ./malloc.o $source_file.o -O3 -o $source_file.riscv
+	fi
+
+	if [[ $malloc_flag == $null ]]; then
+		riscv64-unknown-elf-gcc -fno-common -fno-builtin-printf -specs=htif_nano.specs -march=rv64imafd $source_file.o -O3 -o $source_file.riscv
+	fi
+	
 	echo ">>Jessica:  Generating $source_file.riscv ";
 fi
 
