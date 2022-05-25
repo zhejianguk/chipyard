@@ -12,49 +12,51 @@ int uart_lock;
 /* Core_0 thread */
 int main(void)
 {
+  //================== Initialisation ==================//
   lock_acquire(&uart_lock);
   printf("C0: Test is now start \r\n");
   lock_release(&uart_lock);
   ght_set_status (0x01); // ght: start
 
-__asm__(
-        "li   t0,   0x81000000;"         // write pointer
-        "li   t1,   0x55555000;"         // data
-        "li   t2,   0x81000000;"         // Read pointer
-        "j    .loop_store;");
+  //===================== Execution =====================//
+  __asm__(
+          "li   t0,   0x81000000;"         // write pointer
+          "li   t1,   0x55555000;"         // data
+          "li   t2,   0x81000000;"         // Read pointer
+          "j    .loop_store;");
 
-__asm__(
-        ".loop_store:"
-        "li   a5,   0x81000FFF;"
-        "sw         t1,   (t0);"
-        "addi t1,   t1,   1;"            // data + 1
-        "addi t0,   t0,   4;"            // write address + 4
-        "blt  t0,   a5,  .loop_store;"
-        "li   t0,   0x82000000;"
-        "li   t2,   0x81000000;"
-        "j    .loop_load;");
+  __asm__(
+          ".loop_store:"
+          "li   a5,   0x81000FFF;"
+          "sw         t1,   (t0);"
+          "addi t1,   t1,   1;"            // data + 1
+          "addi t0,   t0,   4;"            // write address + 4
+          "blt  t0,   a5,  .loop_store;"
+          "li   t0,   0x82000000;"
+          "li   t2,   0x81000000;"
+          "j    .loop_load;");
 
-__asm__(
-        ".loop_load:"
-        "li   a5,   0x82000FFF;"
-        "lw   t1,   (t2);"
-        "sw         t1,   (t0);"
-        "addi t0,   t0,   4;"
-        "addi t2,   t2,   4;"
-        "blt  t0,   a5,  .loop_load;");
+  __asm__(
+          ".loop_load:"
+          "li   a5,   0x82000FFF;"
+          "lw   t1,   (t2);"
+          "sw         t1,   (t0);"
+          "addi t0,   t0,   4;"
+          "addi t2,   t2,   4;"
+          "blt  t0,   a5,  .loop_load;");
 
-__asm__(
-        ".loop_load2:"
-        "li   a5,   0x82000FFF;"
-        "lw   t1,   (t2);"
-        "sw         t1,   (t0);"
-        "addi t0,   t0,   4;"
-        "addi t2,   t2,   4;"
-        "blt  t0,   a5,  .loop_load;");
+  __asm__(
+          ".loop_load2:"
+          "li   a5,   0x82000FFF;"
+          "lw   t1,   (t2);"
+          "sw         t1,   (t0);"
+          "addi t0,   t0,   4;"
+          "addi t2,   t2,   4;"
+          "blt  t0,   a5,  .loop_load;");
 
 
 
-  /* Post execution */
+  //=================== Post execution ===================//
   ght_set_status (0x02); // ght: start
   uint64_t status;
   while ((status = ght_get_status()) < 0x0F)
@@ -79,6 +81,10 @@ int __main(void)
         task_PerfCounter(Hart_id);
       break;
 
+      case 0x02:
+        task_PerfCounter(Hart_id);
+      break;
+
       default:
       break;
   }
@@ -91,13 +97,13 @@ void task_PerfCounter(uint64_t core_id) {
   uint64_t Func_Opcode = 0x0;
   uint64_t perfc = 0;
 
-  /* Wait for start */
+  //================== Initialisation ==================//
   while (ghe_checkght_status() == 0x00){
   };
 
 
 
-  /* Operating */
+  //===================== Execution =====================//
   /* New Method */
   /*
   while (ghe_checkght_status() == 0x01) {
@@ -110,6 +116,7 @@ void task_PerfCounter(uint64_t core_id) {
 
 
   /* Old Method */
+  /*
   while (ghe_checkght_status() == 0x01) {
     while (ghe_status() != GHE_EMPTY)
     {
@@ -117,13 +124,27 @@ void task_PerfCounter(uint64_t core_id) {
       perfc = perfc + 1;
     }
   }
+  */
+  while(1)
+  {
+    if (ghe_status() != GHE_EMPTY)
+    {     
+      ROCC_INSTRUCTION_D (1, Func_Opcode, 0x03);
+      perfc = perfc + 1;
+    }
 
+    if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x00)){
+      lock_acquire(&uart_lock);
+      printf("C%x: PMC = %x \n", core_id, perfc);
+      lock_release(&uart_lock);
+      ghe_complete();
+      while((ghe_checkght_status() == 0x00)) {
+      }
+      ghe_go();
+    } 
+  }
+  //=================== Post execution ===================//
 
-
-  /* Report results  */
-  lock_acquire(&uart_lock);
-  printf("C%x: PMC = %x \n", core_id, perfc);
-  lock_release(&uart_lock);
   
   ghe_complete();  
 }

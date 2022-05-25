@@ -35,7 +35,8 @@ if [[ $source_file != $null ]]; then
 	fi
 
 	riscv64-unknown-elf-gcc -fno-common -fno-builtin-printf -specs=htif_nano.specs -march=rv64imafd -O3 -c $source_file.c
-	riscv64-unknown-elf-gcc -fno-common -fno-builtin-printf -specs=htif_nano.specs -march=rv64imafd -static -Wl,--allow-multiple-definition -DUSE_PUBLIC_MALLOC_WRAPPERS ./malloc.o $source_file.o -O3 -o $source_file.riscv
+	riscv64-unknown-elf-gcc -fno-common -fno-builtin-printf -specs=htif_nano.specs -march=rv64imafd $source_file.o -O3 -o $source_file.riscv
+	# riscv64-unknown-elf-gcc -fno-common -fno-builtin-printf -specs=htif_nano.specs -march=rv64imafd -static -Wl,--allow-multiple-definition -DUSE_PUBLIC_MALLOC_WRAPPERS ./malloc.o $source_file.o -O3 -o $source_file.riscv
 	echo ">>Jessica:  Generating $source_file.riscv ";
 fi
 
