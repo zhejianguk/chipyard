@@ -85,6 +85,14 @@ static inline uint64_t ghe_complete ()
   return get_status; 
 }
 
+static inline uint64_t ghe_release ()
+{
+  uint64_t get_status = 0;
+  uint64_t set_status = 0xFF;
+  ROCC_INSTRUCTION_DS (1, get_status, set_status, 0x01);
+  return get_status; 
+}
+
 static inline uint64_t ghe_go ()
 {
   uint64_t get_status = 0;

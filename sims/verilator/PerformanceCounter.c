@@ -141,17 +141,24 @@ void task_PerfCounter(uint64_t core_id) {
       perfc = perfc + 1;
     }
 
-    if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x00)){
+    //=================== Post execution ===================//
+    if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x02)){
       lock_acquire(&uart_lock);
-      printf("C%x: PMC = %x \n", core_id, perfc);
+      printf("C%x Performance counter: Completed monitoring, PMC = %x. \r\n", core_id, perfc);
       lock_release(&uart_lock);
+      ghe_release();
+      idle();
+    }
+    
+    //===================== Execution =====================//
+    if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x00)){
       ghe_complete();
       while((ghe_checkght_status() == 0x00)) {
       }
       ghe_go();
-    } 
+    }
   }
-  //=================== Post execution ===================//
+  
 
   
   ghe_complete();  

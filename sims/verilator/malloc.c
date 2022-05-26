@@ -1511,6 +1511,8 @@ void poison(void* start, size_t bytes) {
 	for(;start_s<end_s;start_s++) {
 		*start_s=-1;
 	}
+  // asm volatile("fence iorw, iorw;");
+  
 }
 
 
@@ -1547,6 +1549,7 @@ void unpoison(void* start, size_t bytes) {
 	for(;start_s<end_s;start_s++) {
 		*start_s=0;
 	}
+  // asm volatile("fence iorw, iorw;");
 }
 
 Void_t* shadow_mALLOc(size_t bytes) {

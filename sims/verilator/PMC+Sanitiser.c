@@ -59,27 +59,25 @@ int main(void)
 
 
   // Use after free
-  /* 
-  lock_acquire(&uart_lock);
-  printf("C0: Now test use after free !\r\n", sum);
-  lock_release(&uart_lock);
+  // *(ptr) = sum;
+  // sum = sum + *(ptr+17);
 
-  *(ptr) = sum;
-  sum = sum + *(ptr);
-  */
 
   //=================== Post execution ===================//
   ght_set_status (0x02); // ght: stop
-  while (ght_get_status() < 0x0F) {
 
-  }
 
-  lock_acquire(&uart_lock);
-  printf("C0: All tests are done! The test result is: %d!\n", sum);
-  lock_release(&uart_lock);
-  
   // shadow memory
   shadow_free(shadow);
+
+  while (ght_get_status() < 0x1F000) {
+    // Check if GHE are released!
+  }
+  
+  lock_acquire(&uart_lock);
+  printf("C0: Finished computation The test result is: %d!\n", sum);
+  lock_release(&uart_lock);
+
   return 0;
 }
 
@@ -111,7 +109,6 @@ int __main(void)
       break;
   }
   
-  idle();
   return 0;
 }
 
@@ -131,28 +128,29 @@ void task_PerfCounter(uint64_t core_id) {
       perfc = perfc + 1;
     }
 
+  //=================== Post execution ===================//
+    if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x02)){
+      lock_acquire(&uart_lock);
+      printf("[C%x PMC]: Completed. PMC = %x. \r\n", core_id, perfc);
+      lock_release(&uart_lock);
+      ghe_release();
+      idle();
+    }
+
+  //===================== Execution =====================//
     if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x00)){
-      // lock_acquire(&uart_lock);
-      // printf("C%x: PMC = %x \n", core_id, perfc);
-      // lock_release(&uart_lock);
       ghe_complete();
       while((ghe_checkght_status() == 0x00)) {
       }
       ghe_go();
     } 
   }
-  //=================== Post execution ===================//
-
-  
-  ghe_complete();  
 }
 
 
 
 void task_Sanitiser(uint64_t core_id) {
-  uint64_t Func_Opcode = 0x0;
   uint64_t Address = 0x0;
-  uint64_t perfc = 0;
 
  //================== Initialisation ==================//
   while (ghe_checkght_status() == 0x00){
@@ -164,21 +162,29 @@ void task_Sanitiser(uint64_t core_id) {
     if (ghe_status() != GHE_EMPTY)
     {     
       ROCC_INSTRUCTION_D (1, Address, 0x05);
-      asm volatile("fence rw, rw;");
-
+      asm volatile("fence r, r;");
 
       char bits = shadow[(Address)>>7];
       
       if(!bits) continue;
       if(bits & (1<<((Address >> 7)&8))) {
         lock_acquire(&uart_lock);
-        printf("C%x: an error access at memory address %x \r\n", core_id, Address);
+        printf("[C%x Sani]: error at address %x. \r\n", core_id, Address);
         lock_release(&uart_lock);
       }
     }
 
-    if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x00)){
+  //=================== Post execution ===================//
+    if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x02)){
+      lock_acquire(&uart_lock);
+      printf("[C%x Sani]: Completed. \r\n", core_id);
+      lock_release(&uart_lock);
+      ghe_release();      
+      idle();
+    }
 
+  //===================== Execution =====================//
+    if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x00)){
       ghe_complete();
       while((ghe_checkght_status() == 0x00)) {
         
