@@ -7,9 +7,9 @@
 #include "malloc.h"
 #include "tasks.h"
 
-
 int uart_lock;
 char* shadow;
+
 
 /* Core_0 thread */
 int main(void)
@@ -115,3 +115,5 @@ int __main(void)
   
   return 0;
 }
+
+

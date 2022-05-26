@@ -6,6 +6,7 @@
 #include "tasks.h"
 
 int uart_lock;
+char* shadow;
 
 /* Core_0 thread */
 int main(void)
