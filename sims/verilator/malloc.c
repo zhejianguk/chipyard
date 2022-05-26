@@ -1470,7 +1470,7 @@ static pthread_mutex_t mALLOC_MUTEx = PTHREAD_MUTEX_INITIALIZER;
 //===== GuardianCouncil Function: Start ====//
 #ifdef GUARDIANCOUNCIL
 #include "rocc.h"
-#include "gh_sbsys.h"
+#include "ght.h"
 #include "spin_lock.h"
 
 extern char* shadow;
@@ -1481,7 +1481,7 @@ int shadow_flag = 0;
 void poison(void* start, size_t bytes) {
 
   ght_set_status (0x00); // ght: pause
-  while (ght_get_status() < 0x0F) {
+  while (ght_get_status() < 0xFFFF) {
     //drain_checkers();
   }	
   ght_set_status (0x01);
@@ -1518,7 +1518,7 @@ void poison(void* start, size_t bytes) {
 
 void unpoison(void* start, size_t bytes) {
   ght_set_status (0x00); // ght: pause
-  while (ght_get_status() < 0x0F) {
+  while (ght_get_status() < 0xFFFF) {
     //drain_checkers();
   }	
   ght_set_status (0x01);

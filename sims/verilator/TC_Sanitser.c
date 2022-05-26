@@ -2,13 +2,12 @@
 #include <stdlib.h>
 #include "rocc.h"
 #include "spin_lock.h"
-#include "gh_sbsys.h"
+#include "ght.h"
 #include "ghe.h"
 #include "malloc.h"
+#include "tasks.h"
 
 int uart_lock;
-void task_Sanitiser(uint64_t core_id);
-
 char* shadow;
 
 /* Core_0 thread */
@@ -107,49 +106,18 @@ int __main(void)
         task_Sanitiser(Hart_id);
       break;
 
+      case 0x03:
+        task_Sanitiser(Hart_id);
+      break;
+
+      case 0x04:
+        task_Sanitiser(Hart_id);
+      break;
+
       default:
       break;
   }
   
   idle();
   return 0;
-}
-
-void task_Sanitiser(uint64_t core_id) {
-  uint64_t Func_Opcode = 0x0;
-  uint64_t Address = 0x0;
-  uint64_t perfc = 0;
-
- //================== Initialisation ==================//
-  while (ghe_checkght_status() == 0x00){
-  };
-
-  //===================== Execution =====================//
-  while(1)
-  {
-    if (ghe_status() != GHE_EMPTY)
-    {     
-      ROCC_INSTRUCTION_D (1, Address, 0x05);
-      asm volatile("fence rw, rw;");
-
-
-      char bits = shadow[(Address)>>7];
-      
-      if(!bits) continue;
-      if(bits & (1<<((Address >> 7)&8))) {
-        lock_acquire(&uart_lock);
-        printf("C%x: an error access at memory address %x \r\n", core_id, Address);
-        lock_release(&uart_lock);
-      }
-    }
-
-    if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x00)){
-
-      ghe_complete();
-      while((ghe_checkght_status() == 0x00)) {
-        
-      }
-      ghe_go();
-    }
-  }  
 }

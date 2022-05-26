@@ -1,11 +1,9 @@
 #include <stdio.h>
 #include "rocc.h"
 #include "spin_lock.h"
-#include "gh_sbsys.h"
+#include "ght.h"
 #include "ghe.h"
-
-
-void task_PerfCounter(uint64_t core_id);
+#include "tasks.h"
 
 int uart_lock;
 
@@ -100,67 +98,3 @@ int __main(void)
   idle();
   return 0;
 }
-
-void task_PerfCounter(uint64_t core_id) {
-  uint64_t Func_Opcode = 0x0;
-  uint64_t perfc = 0;
-
-  //================== Initialisation ==================//
-  while (ghe_checkght_status() == 0x00){
-  };
-
-
-
-  //===================== Execution =====================//
-  /* New Method */
-  /*
-  while (ghe_checkght_status() == 0x01) {
-    while ((Func_Opcode = ghe_popx_func_opcode()) != 0x3FF)
-    {
-        perfc = perfc + 1;
-    }
-  }
-  */
-
-
-  /* Old Method */
-  /*
-  while (ghe_checkght_status() == 0x01) {
-    while (ghe_status() != GHE_EMPTY)
-    {
-      ROCC_INSTRUCTION_D (1, Func_Opcode, 0x03);
-      perfc = perfc + 1;
-    }
-  }
-  */
-  while(1)
-  {
-    if (ghe_status() != GHE_EMPTY)
-    {     
-      ROCC_INSTRUCTION_D (1, Func_Opcode, 0x03);
-      perfc = perfc + 1;
-    }
-
-    //=================== Post execution ===================//
-    if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x02)){
-      lock_acquire(&uart_lock);
-      printf("C%x Performance counter: Completed monitoring, PMC = %x. \r\n", core_id, perfc);
-      lock_release(&uart_lock);
-      ghe_release();
-      idle();
-    }
-    
-    //===================== Execution =====================//
-    if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x00)){
-      ghe_complete();
-      while((ghe_checkght_status() == 0x00)) {
-      }
-      ghe_go();
-    }
-  }
-  
-
-  
-  ghe_complete();  
-}
-
