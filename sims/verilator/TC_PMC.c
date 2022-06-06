@@ -12,10 +12,16 @@ char* shadow;
 int main(void)
 {
   //================== Initialisation ==================//
+  // ld, index: 0x00, func: not care, opcode: 0x03, dp: n/u
+  ght_cfg_rtable(0x00, 0x08, 0x03, 0x00);
+
+
   lock_acquire(&uart_lock);
   printf("C0: Test is now start \r\n");
   lock_release(&uart_lock);
   ght_set_status (0x01); // ght: start
+
+
 
   //===================== Execution =====================//
   __asm__(
@@ -56,9 +62,9 @@ int main(void)
 
 
   //=================== Post execution ===================//
-  ght_set_status (0x02); // ght: start
+  ght_set_status (0x02);
   uint64_t status;
-  while ((status = ght_get_status()) < 0x0F)
+  while ((status = ght_get_status()) < 0x1FFFF)
   {
 
   }

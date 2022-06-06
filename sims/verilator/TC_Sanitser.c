@@ -13,6 +13,7 @@ char* shadow;
 /* Core_0 thread */
 int main(void)
 {
+  
   int *ptr = NULL;
   int ptr_size = 128;
   int sum = 0;
@@ -24,6 +25,12 @@ int main(void)
     printf("C0: Error! memory not allocated.");
     exit(0);
   }
+
+  // ld, index: 0x00, func: not care, opcode: 0x03, dp: alu
+  ght_cfg_rtable(0x00, 0x08, 0x03, 0x01);
+
+  // st, index: 0x01, func: not care, opcode: 0x03, dp: alu
+  ght_cfg_rtable(0x01, 0x08, 0x23, 0x01);
 
   lock_acquire(&uart_lock);
   printf("C0: Test is now start!\r\n");
@@ -78,12 +85,14 @@ int main(void)
   */
   //=================== Post execution ===================//
   ght_set_status (0x02); // ght: stop
-  while (ght_get_status() < 0x0F) {
+  uint64_t status;
+  while ((status = ght_get_status()) < 0x1FFFF)
+  {
 
   }
 
   lock_acquire(&uart_lock);
-  printf("All tests are done!\n");
+  printf("All tests are done! Status: %x \r\n", status);
   lock_release(&uart_lock);
   
   // shadow memory

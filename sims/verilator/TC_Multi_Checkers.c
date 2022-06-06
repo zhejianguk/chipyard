@@ -26,6 +26,12 @@ int main(void)
     exit(0);
   }
 
+  // ld, index: 0x00, func: not care, opcode: 0x03, dp: alu
+  ght_cfg_rtable(0x00, 0x08, 0x03, 0x01);
+
+  // st, index: 0x01, func: not care, opcode: 0x03, dp: alu
+  ght_cfg_rtable(0x01, 0x08, 0x23, 0x01);
+
   lock_acquire(&uart_lock);
   printf("C0: Test is now start!\r\n");
   lock_release(&uart_lock);
@@ -63,24 +69,19 @@ int main(void)
 
 
   //=================== Post execution ===================//
-  ght_set_status (0x00); // ght: pause
-
-  while (ght_get_status() < 0xFFFF) {
-    //drain_checkers();
-  }	
   ght_set_status (0x02); // All: completed
-  
-  
-  // shadow memory
-  shadow_free(shadow);
-  while (ght_get_status() < 0x1FFFF) {
+  uint64_t status;
+  while ((status= ght_get_status()) < 0x1FFFF) {
     // Check if GHE are released!
   }
 
+
   lock_acquire(&uart_lock);
-  printf("C0: Finished computation The test result is: %d!\n", sum);
+  printf("C0: Finished computation The test result is: %d! \r\n Status = %x!\n", sum, status);
   lock_release(&uart_lock);
 
+  // shadow memory
+  shadow_free(shadow);
   return 0;
 }
 
