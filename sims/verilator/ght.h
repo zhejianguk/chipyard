@@ -24,6 +24,19 @@ static inline void ght_cfg_rtable (uint64_t index, uint64_t func, uint64_t opcod
   ROCC_INSTRUCTION_SS (1, set_ref, 0X02, 0x06);
 }
 
+static inline void ght_cfg_stable_checkers (uint64_t se_id, uint64_t end_id, uint64_t policy, uint64_t start_id)
+{
+  uint64_t set_stable_checkers;
+  set_stable_checkers = ((se_id & 0x1f)<<4) | ((start_id & 0xf)<<17) | ((policy & 0x7f)<<21) | ((end_id & 0xf)<<28) | 0x03;
+  ROCC_INSTRUCTION_SS (1, set_stable_checkers, 0X02, 0x06);
+}
+
+static inline void ght_cfg_stable_sch (uint64_t se_id, uint64_t m_inst_type, uint64_t index_m)
+{
+  uint64_t set_stable_sch;
+  set_stable_sch = ((se_id & 0x1f)<<4) | ((index_m & 0xf)<<17) | ((m_inst_type & 0x7f)<<21) | 0x04;
+  ROCC_INSTRUCTION_SS (1, set_stable_sch, 0X02, 0x06);
+}
 
 
 void idle()

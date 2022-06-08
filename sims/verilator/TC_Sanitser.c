@@ -26,11 +26,29 @@ int main(void)
     exit(0);
   }
 
+
+  //================== Initialisation ==================//
   // ld, index: 0x00, func: not care, opcode: 0x03, dp: alu
   ght_cfg_rtable(0x00, 0x08, 0x03, 0x01);
-
   // st, index: 0x01, func: not care, opcode: 0x03, dp: alu
   ght_cfg_rtable(0x01, 0x08, 0x23, 0x01);
+
+  // ld, index: 0x00, func: not care, opcode: 0x03, dp: n/u
+  ght_cfg_rtable(0x00, 0x08, 0x03, 0x00);
+  // se: 00, end_id: 0x02, scheduling: rr, start_id: 0x01
+  ght_cfg_stable_checkers (0x00, 0x02, 0x01, 0x01);
+  // se: 00, m_inst_type: 0x00 -- ld; 0x01 --st; index_m: 0x00, 0x01
+  ght_cfg_stable_sch (0x00, 0x00, 0x00);
+  ght_cfg_stable_sch (0x00, 0x01, 0x01);
+
+  // se: 01, end_id: 0x04, scheduling: rr, start_id: 0x03
+  ght_cfg_stable_checkers (0x01, 0x04, 0x01, 0x03);
+  // se: 01, m_inst_type: 0x00 -- ld; 0x01 --st; index_m: 0x00, 0x01
+  ght_cfg_stable_sch (0x01, 0x00, 0x00);
+  ght_cfg_stable_sch (0x01, 0x01, 0x01);
+
+
+
 
   lock_acquire(&uart_lock);
   printf("C0: Test is now start!\r\n");
