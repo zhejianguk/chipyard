@@ -34,20 +34,6 @@ static inline uint64_t ghe_pop_func_opcode ()
   return packet;
 }
 
-static inline uint64_t ghe_topx_func_opcode ()
-{
-  uint64_t packet;
-  ROCC_INSTRUCTION_D (1, packet, 0x02);
-  return packet;
-}
-
-static inline uint64_t ghe_popx_func_opcode ()
-{
-  uint64_t packet;
-  ROCC_INSTRUCTION_D (1, packet, 0x03);
-  return packet;
-}
-
 
 static inline uint64_t ghe_top_data ()
 {

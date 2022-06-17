@@ -1,5 +1,10 @@
 #include <stdio.h>
+#include "tasks.h"
+#include "rocc.h"
+#include "ght.h"
 
+int uart_lock;
+char* shadow;
 
 int uart_lock = 0;
 int *uart_lock_p = &uart_lock;
@@ -7,20 +12,19 @@ int *uart_lock_p = &uart_lock;
 void lock_acquire(int *lock);
 void lock_release (int *lock);
 
+
 /* Core_0 thread */
 int main(void)
 {
   unsigned long hart_id;
   asm volatile ("csrr %0, mhartid"  : "=r"(hart_id));
 
-  lock_acquire(uart_lock_p);
-  printf("Hello, World! From Hart %d. \n", hart_id);
-  lock_release(uart_lock_p);
-
-  while (1)
+  for (int i = 0; i < 7; i ++)
   {
-
+    task_hello(hart_id);
+    ght_set_status (0x02);
   }
+
 
   return 0;
 }
@@ -31,9 +35,7 @@ int __main(void)
   unsigned long hart_id;
   asm volatile ("csrr %0, mhartid"  : "=r"(hart_id));
 
-  lock_acquire(uart_lock_p);
-  printf("Hello, World! From Hart %d. \n", hart_id);
-  lock_release(uart_lock_p);
+  task_hello(hart_id);
 
   while (1)
   {
@@ -41,8 +43,6 @@ int __main(void)
   }
   return 0;
 }
-
-
 
 void lock_acquire(int *lock)
 {
