@@ -18,7 +18,6 @@ int task_hello (int hart_id)
   return 0;
 }
 
-
 uint64_t task_synthetic ()
 {
   uint64_t output;
@@ -34,7 +33,7 @@ uint64_t task_synthetic ()
           "li   a5,   0x81000FFF;"
           "sw         t1,   (t0);"
           "addi t1,   t1,   1;"            // data + 1
-          "addi t0,   t0,   4;"            // write address + 4
+          "addi t0,   t0,   64;"            // write address + 4
           "blt  t0,   a5,  .loop_store;"
           "li   t0,   0x82000000;"
           "li   t2,   0x81000000;"
@@ -45,8 +44,8 @@ uint64_t task_synthetic ()
           "li   a5,   0x82000FFF;"
           "lw   t1,   (t2);"
           "sw         t1,   (t0);"
-          "addi t0,   t0,   4;"
-          "addi t2,   t2,   4;"
+          "addi t0,   t0,   64;"
+          "addi t2,   t2,   64;"
           "blt  t0,   a5,  .loop_load;");
 
   __asm__(
@@ -54,21 +53,11 @@ uint64_t task_synthetic ()
           "li   a5,   0x82000FFF;"
           "lw   t1,   (t2);"
           "sw         t1,   (t0);"
-          "addi t0,   t0,   4;"
-          "addi t2,   t2,   4;"
+          "addi t0,   t0,   64;"
+          "addi t2,   t2,   64;"
           "blt  t0,   a5,  .loop_load;");
 
    return output;
-}
-
-uint64_t task_synthetic2 (uint64_t input)
-{
-  uint64_t output;
-  //===================== Execution =====================//
-  output = input * 3 + 7;
-  
-
-  return output;
 }
 
 
@@ -83,7 +72,7 @@ int task_PerfCounter(uint64_t core_id) {
   //===================== Execution =====================// 
   while (ghe_checkght_status() != 0x02){
     while (ghe_status() != GHE_EMPTY){
-      ROCC_INSTRUCTION_D (1, Func_Opcode, 0x03);
+      ROCC_INSTRUCTION_D (1, Func_Opcode, 0x05);
       perfc = perfc + 1;
     }
 
@@ -128,7 +117,7 @@ int task_Sanitiser(uint64_t core_id) {
       if(bits & (1<<((Address >> 7)&8))) {
         
         lock_acquire(&uart_lock);
-        printf("[C%x Sani]: Error memory accesses is detected at %x. \r\n", core_id, Address);
+        printf("[C%x Sani]: **Error** illegal accesses at %x. \r\n", core_id, Address);
         lock_release(&uart_lock);
         Err_Cnt ++;
         // return -1;
@@ -189,25 +178,27 @@ int task_ShadowStack (uint64_t core_id) {
         if (full(&shadow_payload) == 0) {
           enqueueF(&shadow_header, Header);
           enqueueF(&shadow_payload, Payload);
+          lock_acquire(&uart_lock);
+         printf("[C%x SS]: Pushed. Addr: %x. \r\n", core_id, Payload);
+         lock_release(&uart_lock);
         }
-        lock_acquire(&uart_lock);
-        printf("[C%x ShadowStack]: Function is called. Return address should be: %x. \r\n", core_id, Payload);
-        lock_release(&uart_lock);
-      } else if ((Opcode == 0x67) && (Rd == 0x00)) {
-        // Pull -- a function is returned
+      }
+
+      // Pull -- a function is returned
+      if ((Opcode == 0x67) && (Rd == 0x00)) {
         if (empty(&shadow_payload) == 1) {
-          // Revisit: to do
-          printf("[C%x ShadowStack]: **Shadow Stack is empty**. Return address is: %x. \r\n", core_id, Payload);
+          // printf("[C%x ShadowStack]: **Empty**. Pulled %x. \r\n", core_id, Payload);
         } else {
           u_int64_t comp = dequeueF(&shadow_payload);
           dequeueF(&shadow_header);
+          
           if (comp != Payload){
             lock_acquire(&uart_lock);
-            printf("[C%x ShadowStack]: **Error** Return address is %x, expected return address is %x. \r\n", core_id, Payload, comp);
+            printf("[C%x SS]: **Error** %x v.s. %x. \r\n", core_id, Payload, comp);
             lock_release(&uart_lock);
-          } else{
+          } else {
             lock_acquire(&uart_lock);
-            printf("[C%x ShadowStack]: Correct! Function returned to address: %x. \r\n", core_id, Payload);
+            printf("[C%x SS]: Pulled. Addr: %x. \r\n", core_id, Payload);
             lock_release(&uart_lock);
           }
         }
@@ -226,7 +217,7 @@ int task_ShadowStack (uint64_t core_id) {
 
   //=================== Post execution ===================//
   lock_acquire(&uart_lock);
-  printf("[C%x St]: Completed.\r\n", core_id);
+  printf("[C%x SS]: Completed. No overflow is detected.\r\n", core_id);
   lock_release(&uart_lock);
   ghe_release();      
   

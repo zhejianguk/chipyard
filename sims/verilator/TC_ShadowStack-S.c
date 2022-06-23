@@ -57,11 +57,8 @@ int main(void)
   ght_set_status (0x01); // ght: start
 
   //===================== Execution =====================//
-  uint64_t Hart_id = 0;
-  asm volatile ("csrr %0, mhartid"  : "=r"(Hart_id));
-  uint64_t loop = task_synthetic2(Hart_id);
-
-  for (int i; i < loop; i ++){
+  for (int i = 0; i < 3; i++)
+  {
     task_synthetic();
   }
 
@@ -94,7 +91,7 @@ int main(void)
   uint64_t status;
   while ((status = ght_get_status()) < 0x1FFFF)
   {
-
+    ght_set_status (0x02);
   }
 
   lock_acquire(&uart_lock);
