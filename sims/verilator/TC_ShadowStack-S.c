@@ -1,9 +1,11 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "rocc.h"
 #include "spin_lock.h"
 #include "ght.h"
 #include "ghe.h"
 #include "tasks.h"
+#include "malloc.h"
 
 int uart_lock;
 char* shadow;
@@ -11,7 +13,17 @@ char* shadow;
 /* Core_0 thread */
 int main(void)
 {
+  int *ptr = NULL;
+  int ptr_size = 128;
+  int sum = 0;
   //================== Initialisation ==================//
+  // shadow memory
+  shadow = shadow_malloc(32*1024*1024*sizeof(char));
+  if(shadow == NULL) {
+    printf("C0: Error! memory not allocated.");
+    exit(0);
+  }
+
   // Insepct JAL 
   // inst_index: 0x03 
   // Func: 0x00 - 0x0F
@@ -44,6 +56,7 @@ int main(void)
   lock_release(&uart_lock);
   ght_set_status (0x01); // ght: start
 
+  //===================== Execution =====================//
   uint64_t Hart_id = 0;
   asm volatile ("csrr %0, mhartid"  : "=r"(Hart_id));
   uint64_t loop = task_synthetic2(Hart_id);
@@ -52,6 +65,27 @@ int main(void)
     task_synthetic();
   }
 
+  ptr = (int*) malloc(ptr_size * sizeof(int));
+ 
+  // if memory cannot be allocated
+  if(ptr == NULL) {
+    printf("C0: Error! memory not allocated.");
+    exit(0);
+  }
+
+  for (int i = 0; i < ptr_size; i++)
+  {
+    *(ptr + i) = i;
+  }
+
+  for (int i = 0; i < ptr_size; i++)
+  {
+    sum = sum + *(ptr+i);
+  }
+
+  free(ptr);
+
+  // printf("Sum = %x \r\n", sum);
 
 
 
@@ -64,7 +98,7 @@ int main(void)
   }
 
   lock_acquire(&uart_lock);
-  printf("All tests are done! Status: %x \r\n", status);
+  printf("All tests are done! Status: %x, sum = %x \r\n", status, sum);
   lock_release(&uart_lock);
   return 0;
 }

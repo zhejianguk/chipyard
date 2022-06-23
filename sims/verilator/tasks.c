@@ -6,6 +6,7 @@
 #include "ghe.h"
 #include "malloc.h"
 #include "tasks.h"
+#include "deque.h"
 
 
 int task_hello (int hart_id)
@@ -154,15 +155,23 @@ int task_Sanitiser(uint64_t core_id) {
   return 0;
 }
 
+
 int task_ShadowStack (uint64_t core_id) {
   uint64_t Address = 0x0;
   uint64_t Header = 0x0;  
   uint64_t Opcode = 0x0;
   uint64_t Rd = 0x0;
   uint64_t RS1 = 0x0;
-  uint64_t Packet = 0x0;
+  uint64_t Payload = 0x0;
+
+  
 
   //================== Initialisation ==================//
+  dequeue  shadow_header;
+  dequeue  shadow_payload;
+  initialize(&shadow_header);
+  initialize(&shadow_payload);
+
   while (ghe_checkght_status() == 0x00){
   };
 
@@ -170,23 +179,41 @@ int task_ShadowStack (uint64_t core_id) {
   while (ghe_checkght_status() != 0x02){
     while (ghe_status() != GHE_EMPTY){
       ROCC_INSTRUCTION_D (1, Header, 0x02);
-      ROCC_INSTRUCTION_D (1, Packet, 0x05);
+      ROCC_INSTRUCTION_D (1, Payload, 0x05);
+
       Opcode = Header & 0x7F;
       Rd = (Header & 0x7C00) >> 10;
-
-      // Function call
+      
+      // Push -- a function is called
       if (((Opcode == 0x6F) || (Opcode == 0x67)) && (Rd == 0x01)) {
-        printf("[C%x ST]: Function is called, return address should be: %x \r\n", core_id, Packet);
+        if (full(&shadow_payload) == 0) {
+          enqueueF(&shadow_header, Header);
+          enqueueF(&shadow_payload, Payload);
+        }
+        lock_acquire(&uart_lock);
+        printf("[C%x ShadowStack]: Function is called. Return address should be: %x. \r\n", core_id, Payload);
+        lock_release(&uart_lock);
+      } else if ((Opcode == 0x67) && (Rd == 0x00)) {
+        // Pull -- a function is returned
+        if (empty(&shadow_payload) == 1) {
+          // Revisit: to do
+          printf("[C%x ShadowStack]: **Shadow Stack is empty**. Return address is: %x. \r\n", core_id, Payload);
+        } else {
+          u_int64_t comp = dequeueF(&shadow_payload);
+          dequeueF(&shadow_header);
+          if (comp != Payload){
+            lock_acquire(&uart_lock);
+            printf("[C%x ShadowStack]: **Error** Return address is %x, expected return address is %x. \r\n", core_id, Payload, comp);
+            lock_release(&uart_lock);
+          } else{
+            lock_acquire(&uart_lock);
+            printf("[C%x ShadowStack]: Correct! Function returned to address: %x. \r\n", core_id, Payload);
+            lock_release(&uart_lock);
+          }
+        }
       }
-
-      // Function return
-      if ((Opcode == 0x67) && (Rd == 0x00)) {
-        printf("[C%x ST]: Function is returned, return address is: %x \r\n", core_id, Packet);
-      }
-
     }
-
-
+  
     if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x00)) {
       ghe_complete();
       while((ghe_checkght_status() == 0x00)) {

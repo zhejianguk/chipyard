@@ -22,10 +22,9 @@ int main(void)
   for (int i = 0; i < 7; i ++)
   {
     task_hello(hart_id);
-    ght_set_status (0x02);
   }
 
-
+  while (1){};
   return 0;
 }
 

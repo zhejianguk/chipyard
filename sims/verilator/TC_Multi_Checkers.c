@@ -82,9 +82,6 @@ int main(void)
     sum = sum + *(ptr+i);
   }
 
-  lock_acquire(&uart_lock);
-  printf("C0: Sum = %d \r\n", sum);
-  lock_release(&uart_lock);
   free(ptr);
 
 
@@ -138,7 +135,7 @@ int __main(void)
       break;
   }
   
-  
+  idle();
   return 0;
 }
 
