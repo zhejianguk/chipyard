@@ -171,7 +171,7 @@ int task_ShadowStack (uint64_t core_id) {
       ROCC_INSTRUCTION_D (1, Payload, 0x05);
 
       Opcode = Header & 0x7F;
-      Rd = (Header & 0x7C00) >> 10;
+      Rd = (Header & 0xF80) >> 7;
       
       // Push -- a function is called
       if (((Opcode == 0x6F) || (Opcode == 0x67)) && (Rd == 0x01)) {
