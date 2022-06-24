@@ -72,7 +72,7 @@ int task_PerfCounter(uint64_t core_id) {
   //===================== Execution =====================// 
   while (ghe_checkght_status() != 0x02){
     while (ghe_status() != GHE_EMPTY){
-      ROCC_INSTRUCTION_D (1, Func_Opcode, 0x05);
+      ROCC_INSTRUCTION_D (1, Func_Opcode, 0x0B);
       perfc = perfc + 1;
     }
 
@@ -107,7 +107,7 @@ int task_Sanitiser(uint64_t core_id) {
   //===================== Execution =====================// 
   while (ghe_checkght_status() != 0x02){
     while (ghe_status() != GHE_EMPTY){    
-      ROCC_INSTRUCTION_D (1, Address, 0x05);
+      ROCC_INSTRUCTION_D (1, Address, 0x0D);
       asm volatile("fence rw, rw;");
 
       char bits = shadow[(Address)>>7];
@@ -167,8 +167,8 @@ int task_ShadowStack (uint64_t core_id) {
   //===================== Execution =====================// 
   while (ghe_checkght_status() != 0x02){
     while (ghe_status() != GHE_EMPTY){
-      ROCC_INSTRUCTION_D (1, Header, 0x02);
-      ROCC_INSTRUCTION_D (1, Payload, 0x05);
+      ROCC_INSTRUCTION_D (1, Header, 0x0A);
+      ROCC_INSTRUCTION_D (1, Payload, 0x0D);
 
       Opcode = Header & 0x7F;
       Rd = (Header & 0xF80) >> 7;

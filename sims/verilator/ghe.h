@@ -20,7 +20,7 @@ static inline uint64_t ghe_top_func_opcode ()
 {
   uint64_t packet = 0x00;
   if (ghe_status() != 0x01) {
-    ROCC_INSTRUCTION_D (1, packet, 0x02);
+    ROCC_INSTRUCTION_D (1, packet, 0x0A);
   }
   return packet;
 }
@@ -29,7 +29,7 @@ static inline uint64_t ghe_pop_func_opcode ()
 {
   uint64_t packet = 0x00;
   if (ghe_status() != 0x01) {
-    ROCC_INSTRUCTION_D (1, packet, 0x03);
+    ROCC_INSTRUCTION_D (1, packet, 0x0B);
   }
   return packet;
 }
@@ -39,7 +39,7 @@ static inline uint64_t ghe_top_data ()
 {
   uint64_t packet = 0x00;
   if (ghe_status() != 0x01) {
-    ROCC_INSTRUCTION_D (1, packet, 0x04);
+    ROCC_INSTRUCTION_D (1, packet, 0x0C);
   }
   return packet;
 }
@@ -49,7 +49,7 @@ static inline uint64_t ghe_pop_data ()
 {
   uint64_t packet = 0x00;
   if (ghe_status() != 0x01) {
-    ROCC_INSTRUCTION_D (1, packet, 0x05);
+    ROCC_INSTRUCTION_D (1, packet, 0x0D);
   }
   return packet;
 }
