@@ -149,6 +149,10 @@ int __main(void)
         task_Sanitiser(Hart_id);
       break;
 
+      case 0x05:
+        task_Sanitiser(Hart_id);
+      break;
+
       default:
       break;
   }
