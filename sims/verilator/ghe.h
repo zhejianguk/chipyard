@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#define GHE_FULL 0x10
+#define GHE_FULL 0x02
 #define GHE_EMPTY 0x01
 
 
@@ -85,4 +85,20 @@ static inline uint64_t ghe_go ()
   uint64_t set_status = 0;
   ROCC_INSTRUCTION_DS (1, get_status, set_status, 0x01);
   return get_status; 
+}
+
+static inline uint64_t ghe_agg_status ()
+{
+  uint64_t status;
+  ROCC_INSTRUCTION_D (1, status, 0x10);
+  return status; 
+  // 0b01: empty; 
+  // 0b10: full;
+  // 0b00: data buffered;
+  // 0b11: error
+}
+
+static inline void ghe_agg_push (uint64_t header, uint64_t payload)
+{
+  ROCC_INSTRUCTION_SS (1, header, payload, 0x11);
 }
