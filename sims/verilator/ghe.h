@@ -102,3 +102,14 @@ static inline void ghe_agg_push (uint64_t header, uint64_t payload)
 {
   ROCC_INSTRUCTION_SS (1, header, payload, 0x11);
 }
+
+static inline uint64_t ghe_sch_status ()
+{
+  uint64_t status;
+  ROCC_INSTRUCTION_D (1, status, 0x20);
+  return status; 
+  // 0b01: empty; 
+  // 0b10: full;
+  // 0b00: data buffered;
+  // 0b11: error
+}

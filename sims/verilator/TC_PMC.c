@@ -118,6 +118,14 @@ int __main(void)
         task_PerfCounter(Hart_id);
       break;
 
+      case 0x06:
+        task_PerfCounter(Hart_id);
+      break;
+
+
+      case 0x07:
+        task_PerfCounter(Hart_id);
+      break;
 
       default:
       break;

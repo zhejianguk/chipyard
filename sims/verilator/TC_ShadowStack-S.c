@@ -82,6 +82,7 @@ int main(void)
 
   free(ptr);
 
+  printf(" ");
   // printf("Sum = %x \r\n", sum);
 
 
@@ -108,24 +109,33 @@ int __main(void)
   
   switch (Hart_id){
       case 0x01:
-        task_ShadowStack(Hart_id);
+        task_ShadowStack_S(Hart_id);
       break;
 
       case 0x02:
-        task_ShadowStack(Hart_id);
+        task_ShadowStack_S(Hart_id);
       break;
 
       case 0x03:
-        task_ShadowStack(Hart_id);
+        task_ShadowStack_S(Hart_id);
       break;
 
       case 0x04:
-        task_ShadowStack(Hart_id);
+        task_ShadowStack_S(Hart_id);
       break;
 
       case 0x05:
-        task_ShadowStack(Hart_id);
+        task_ShadowStack_S(Hart_id);
       break;
+
+      case 0x06:
+        task_ShadowStack_S(Hart_id);
+      break;
+
+      case 0x07:
+        task_ShadowStack_S(Hart_id);
+      break;
+
 
 
       default:

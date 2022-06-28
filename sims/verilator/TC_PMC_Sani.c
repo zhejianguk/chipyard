@@ -15,7 +15,7 @@ char* shadow;
 int main(void)
 {
   int *ptr = NULL;
-  int ptr_size = 128;
+  int ptr_size = 32;
   int sum = 0;
 
   //================== Initialisation ==================//
@@ -68,9 +68,13 @@ int main(void)
  
   // if memory cannot be allocated
   if(ptr == NULL) {
-    printf("C0: Error! memory not allocated.");
+    printf("C0: Error! memory not allocated.\r\n");
     exit(0);
   }
+
+  lock_acquire(&uart_lock);
+  printf("C0: Memory allocated from: %x.\r\n", ptr);
+  lock_release(&uart_lock);
 
   for (int i = 0; i < ptr_size; i++)
   {
@@ -86,6 +90,7 @@ int main(void)
 
 
   // Use after free
+  /*
   asm volatile(
                 "li   t0,   0x82005000;"         // write pointer
                 "li   t1,   0x55555000;"         // data
@@ -93,12 +98,12 @@ int main(void)
 
   asm volatile(
                 ".loop_store:"
-                "li   a5,   0x82005FFF;"
+                "li   a5,   0x82007FFF;"
                 "lw         t1,   (t0);"
                 "addi t1,   t1,   1;"            // data + 1
-                "addi t0,   t0,   256;"            // write address + 4
+                "addi t0,   t0,   4;"            // write address + 4
                 "blt  t0,   a5,  .loop_store;");    
-
+  */
 
 
   //=================== Post execution ===================//
@@ -143,6 +148,14 @@ int __main(void)
       break;
 
       case 0x05:
+        task_PerfCounter(Hart_id);
+      break;
+
+      case 0x06:
+        task_PerfCounter(Hart_id);
+      break;
+
+      case 0x07:
         task_PerfCounter(Hart_id);
       break;
 

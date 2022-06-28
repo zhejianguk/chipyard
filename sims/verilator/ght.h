@@ -2,7 +2,7 @@
 
 #define TRUE 0x01
 #define FALSE 0x00
-#define NUM_CHECKERS 3
+#define NUM_CORES 8
 #define DEPTH_GHE 256
 
 static inline void ght_set_status (uint64_t status)
