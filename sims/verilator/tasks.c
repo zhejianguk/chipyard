@@ -32,30 +32,11 @@ uint64_t task_synthetic ()
           ".loop_store:"
           "li   a5,   0x81000FFF;"
           "sw         t1,   (t0);"
-          "addi t1,   t1,   1;"            // data + 1
-          "addi t0,   t0,   64;"            // write address + 4
+          "addi t1,   t1,   1;"             // data + 1
+          "addi t0,   t0,   1024;"          // write address + 4
           "blt  t0,   a5,  .loop_store;"
           "li   t0,   0x82000000;"
-          "li   t2,   0x81000000;"
-          "j    .loop_load;");
-
-  __asm__(
-          ".loop_load:"
-          "li   a5,   0x82000FFF;"
-          "lw   t1,   (t2);"
-          "sw         t1,   (t0);"
-          "addi t0,   t0,   64;"
-          "addi t2,   t2,   64;"
-          "blt  t0,   a5,  .loop_load;");
-
-  __asm__(
-          ".loop_load2:"
-          "li   a5,   0x82000FFF;"
-          "lw   t1,   (t2);"
-          "sw         t1,   (t0);"
-          "addi t0,   t0,   64;"
-          "addi t2,   t2,   64;"
-          "blt  t0,   a5,  .loop_load;");
+          "li   t2,   0x81000000;");
 
    return output;
 }
@@ -146,12 +127,12 @@ int task_Sanitiser(uint64_t core_id) {
 
 
 int task_ShadowStack_S (uint64_t core_id) {
-  uint64_t Address = 0x0;
   uint64_t Header = 0x0;  
   uint64_t Opcode = 0x0;
   uint64_t Rd = 0x0;
   uint64_t RS1 = 0x0;
   uint64_t Payload = 0x0;
+  uint64_t PC = 0x0;
 
   
 
@@ -172,6 +153,7 @@ int task_ShadowStack_S (uint64_t core_id) {
 
       Opcode = Header & 0x7F;
       Rd = (Header & 0xF80) >> 7;
+      PC = Header >> 32;
       
       // Push -- a function is called
       if (((Opcode == 0x6F) || (Opcode == 0x67)) && (Rd == 0x01)) {
@@ -179,7 +161,7 @@ int task_ShadowStack_S (uint64_t core_id) {
           enqueueF(&shadow_header, Header);
           enqueueF(&shadow_payload, Payload);
           lock_acquire(&uart_lock);
-         printf("[C%x SS]: Pushed. Addr: %x. \r\n", core_id, Payload);
+         printf("[C%x SS]: Pushed. Addr: %x. PC: %x. \r\n", core_id, Payload, PC);
          lock_release(&uart_lock);
         }
       }
@@ -194,12 +176,12 @@ int task_ShadowStack_S (uint64_t core_id) {
           
           if (comp != Payload){
             lock_acquire(&uart_lock);
-            printf("[C%x SS]: **Error** %x v.s. %x. \r\n", core_id, Payload, comp);
+            printf("[C%x SS]: **Error** %x v.s. %x. PC: %x. \r\n", core_id, Payload, comp, PC);
             lock_release(&uart_lock);
             // return -1;
           } else {
             lock_acquire(&uart_lock);
-            printf("[C%x SS]: Pulled. Addr: %x. \r\n", core_id, Payload);
+            printf("[C%x SS]: Pulled. Addr: %x. PC: %x. \r\n", core_id, Payload, PC);
             lock_release(&uart_lock);
           }
         }
@@ -229,15 +211,17 @@ int task_ShadowStack_S (uint64_t core_id) {
 
 
 int task_ShadowStack_M_Pre (uint64_t core_id) {
-  uint64_t Address = 0x0;
-  uint64_t Header = 0x0;  
+  uint64_t Header = 0x0;
+  uint64_t Pc = 0x0;  
   uint64_t Opcode = 0x0;
+  uint64_t Inst = 0x0;
   uint64_t Rd = 0x0;
   uint64_t RS1 = 0x0;
   uint64_t Payload = 0x0;
   uint64_t Header_index = (core_id << 32);
-  uint64_t Err_Cnt = 0x0;
-  uint64_t pause = 0xFF;
+  uint64_t S_Header = 0x00;
+  uint64_t S_Payload = 0x00;
+  uint64_t cnt = 0x00;
 
   //================== Initialisation ==================//
   dequeue  shadow_header;
@@ -254,13 +238,15 @@ int task_ShadowStack_M_Pre (uint64_t core_id) {
       ROCC_INSTRUCTION_D (1, Header, 0x0A);
       ROCC_INSTRUCTION_D (1, Payload, 0x0D);
 
+      Inst = Header & 0xFFFFFFFF;
+      Pc = Header >> 32;
       Opcode = Header & 0x7F;
       Rd = (Header & 0xF80) >> 7;
       
       // Push -- a function is called
       if (((Opcode == 0x6F) || (Opcode == 0x67)) && (Rd == 0x01)) {
         if (full(&shadow_payload) == 0) {
-          enqueueF(&shadow_header, Header);
+          enqueueF(&shadow_header, Inst);
           enqueueF(&shadow_payload, Payload);
         } else {
           lock_acquire(&uart_lock);
@@ -275,39 +261,44 @@ int task_ShadowStack_M_Pre (uint64_t core_id) {
           // Send it to AGG
           while (ghe_agg_status() == GHE_FULL) {
           }
-          uint64_t S_Header = Header | Header_index;
-          uint64_t S_Payload = Payload;
+          S_Header = Inst | Header_index;
+          S_Payload = Payload;
           ghe_agg_push (S_Header, S_Payload);
         } else {
           u_int64_t comp = dequeueF(&shadow_payload);
           dequeueF(&shadow_header);
           
           if (comp != Payload){
-            Err_Cnt++;
             lock_acquire(&uart_lock);
             printf("[C%x SS]: **Error** %x v.s. %x. \r\n", core_id, Payload, comp);
             lock_release(&uart_lock);
           } else {
-            // Successfully paired
           }
         }
       }
 
-      if (pause != 0x00) {
-        pause = 0x00;
+    // If all push and pull are handled
+    if ((ghe_sch_status() == 0x01) && (ghe_status() == GHE_EMPTY)) {
+      // Send unpaired pushes 
+      while ((empty(&shadow_payload) == 0)) {
+        S_Header = dequeueR(&shadow_header);
+        S_Header = S_Header | Header_index;
+        S_Payload = dequeueR(&shadow_payload);
+        while (ghe_agg_status() == GHE_FULL) {
+        }
+        ghe_agg_push (S_Header, S_Payload);
       }
-    }
-
-    if ((ghe_sch_status() == 0x01) && (pause == 0x00))
-    {
+    
+      // Send termination flag
       while (ghe_agg_status() == GHE_FULL) {
       }
       ghe_agg_push ((0xFFFFFFFF|Header_index), 0x0);
-      pause = 1;
+      }
     }
 
+
   
-    if ((ghe_status() == GHE_EMPTY) && (ghe_checkght_status() == 0x00)) {
+    if ((ghe_checkght_status() == 0x00) && (ghe_status() == GHE_EMPTY)) {
       ghe_complete();
       while((ghe_checkght_status() == 0x00)) {
         // Wait big core to re-start
@@ -319,40 +310,94 @@ int task_ShadowStack_M_Pre (uint64_t core_id) {
 
   //=================== Post execution ===================//
   lock_acquire(&uart_lock);
-  printf("[C%x SS]: Completed, %x errors are detected.\r\n", core_id, Err_Cnt);
+  printf("[C%x SS]: Completed. No error is detected\r\n", core_id);
   lock_release(&uart_lock);
   ghe_release();      
   
   return 0;
 }
 
+dequeue  shadow_agg_header;
+dequeue  shadow_agg_payload;
+dequeue  queues_header[NUM_CORES];
+dequeue  queues_payload[NUM_CORES];
 
-int task_ShadowStack_Agg (uint64_t core_id) {
-  uint64_t Address = 0x0;
-  uint64_t Header = 0x0;  
-  uint64_t Opcode = 0x0;
-  uint64_t Rd = 0x0;
-  uint64_t RS1 = 0x0;
-  uint64_t Payload = 0x0;
-  uint64_t Err_Cnt = 0x0;
+void clear_queue(int index)
+{
+  // lock_acquire(&uart_lock);
+  // printf("[AGG SS]: Start to clear core %x \r\n", index);
+  // lock_release(&uart_lock);
+
+  while (empty(&queues_header[index]) == 0) {
+    uint64_t Header_q = dequeueF(&queues_header[index]);
+    Header_q = Header_q & 0xFFFFFFFF;
+    uint64_t Payload_q = dequeueF(&queues_payload[index]);
+    uint64_t Opcode_q = Header_q & 0x7F;
+    uint64_t Rd_q = (Header_q & 0xF80) >> 7;
+             
+    if (((Opcode_q == 0x6F) || (Opcode_q == 0x67)) && (Rd_q == 0x01)) {
+      if (full(&shadow_agg_payload) == 0) {
+        enqueueF(&shadow_agg_header, Header_q);
+        enqueueF(&shadow_agg_payload, Payload_q);
+        lock_acquire(&uart_lock);
+        printf("[AGG SS]: Pushed. Addr: %x -- From core %x. \r\n", Payload_q, index);
+        lock_release(&uart_lock);
+      } else {
+        lock_acquire(&uart_lock);
+        printf("[AGG SS]: **Error** shadow stack is full. -- From core %x.\r\n", index);
+        lock_release(&uart_lock);
+        }
+      }
+
+    if ((Opcode_q == 0x67) && (Rd_q == 0x00)) {
+      if (empty(&shadow_agg_payload) == 1) {
+        printf("[AGG SS]: **Error** unintended pull. Addr: %x. Inst:%x. -- From core %x. \r\n", Payload_q, Header_q, index);
+      } else {
+        u_int64_t comp_q = dequeueF(&shadow_agg_payload);
+        dequeueF(&shadow_agg_header);
+
+        if (comp_q != Payload_q){
+          lock_acquire(&uart_lock);
+          printf("[AGG SS]: **Error** %x v.s. %x. Inst: %x. -- From core %x. \r\n", Payload_q, comp_q, Header_q, index);
+          lock_release(&uart_lock);
+        } else {
+          // Successfully paired
+          lock_acquire(&uart_lock);
+          printf("[AGG SS]: --Paired-- %x v.s. %x. \r\n", Payload_q, comp_q);
+          lock_release(&uart_lock);
+        }
+      }
+    }
+  }
+  // lock_acquire(&uart_lock);
+  // printf("[AGG SS]: Complete clearing core %x \r\n", index);
+  // lock_release(&uart_lock);
+}
+
+uint64_t nxt_target (uint64_t c_current, uint64_t c_start, uint64_t c_end)
+{
+  uint64_t c_nxt;
+  if (c_current == c_end) {
+    c_nxt = c_start;
+  } else {
+    c_nxt = c_current + 1;
+  }
+  return c_nxt;
+}
 
 
 
-  //================== Initialisation ==================//
-  dequeue  shadow_header;
-  dequeue  shadow_payload;
-  dequeue  queues_header[NUM_CORES];
-  dequeue  queues_payload[NUM_CORES];
-  
-  initialize(&shadow_header);
-  initialize(&shadow_payload);
+int task_ShadowStack_M_Agg (uint64_t core_id, uint64_t core_s, uint64_t core_e) {
+  uint64_t CurrentTarget = core_s;
 
+  //================== Initialisation ==================//  
+  initialize(&shadow_agg_header);
+  initialize(&shadow_agg_header);
   for (int i = 0; i < NUM_CORES; i ++)
   {
     initialize(&queues_header[i]);
     initialize(&queues_payload[i]);
   }
-
 
   while (ghe_checkght_status() == 0x00){
   };
@@ -360,23 +405,101 @@ int task_ShadowStack_Agg (uint64_t core_id) {
   //===================== Execution =====================// 
   while (ghe_checkght_status() != 0x02){
     while (ghe_status() != GHE_EMPTY){
+      uint64_t Header = 0x0;  
+      uint64_t Opcode = 0x0;
+      uint64_t Rd = 0x0;
+      uint64_t RS1 = 0x0;
+      uint64_t Payload = 0x0;
+
       ROCC_INSTRUCTION_D (1, Header, 0x0A);
       ROCC_INSTRUCTION_D (1, Payload, 0x0D);
       uint64_t from = (Header>>32) & 0xF;
       uint64_t inst = Header & 0xFFFFFFFF;
 
-      Opcode = Header & 0x7F;
-      Rd = (Header & 0xF80) >> 7;
-      
+      if (from == CurrentTarget){
+        uint64_t Opcode = inst & 0x7F;
+        uint64_t Rd = (inst & 0xF80) >> 7;
+
+        // Push -- a function is pushed
+        if (((Opcode == 0x6F) || (Opcode == 0x67)) && (Rd == 0x01)) {
+          if (full(&shadow_agg_payload) == 0) {
+            enqueueF(&shadow_agg_header, Header);
+            enqueueF(&shadow_agg_payload, Payload);
+            lock_acquire(&uart_lock);
+            printf("[AGG SS]: Pushed. Addr: %x -- From core %x. \r\n", Payload, CurrentTarget);
+            lock_release(&uart_lock);
+          } else {
+            lock_acquire(&uart_lock);
+            printf("[AGG SS]: **Error** shadow stack is full. -- From core %x. \r\n", CurrentTarget);
+            lock_release(&uart_lock);
+          }
+        }
+
+        // Pull -- a function is pulled
+        if ((Opcode == 0x67) && (Rd == 0x00)) {
+          if (empty(&shadow_agg_payload) == 1) {
+            printf("[AGG SS]: **Error** unintended pull. Addr: %x. Inst:%x. -- From core %x.  \r\n", Payload, inst, CurrentTarget);
+          } else {
+            u_int64_t comp = dequeueF(&shadow_agg_payload);
+            dequeueF(&shadow_agg_header);
+          
+            if (comp != Payload){
+              lock_acquire(&uart_lock);
+              printf("[AGG SS]: **Error** %x v.s. %x. Inst: %x. -- From core %x. \r\n", Payload, comp, inst, CurrentTarget);
+              lock_release(&uart_lock);
+            } else {
+              // Successfully paired
+              lock_acquire(&uart_lock);
+              printf("[AGG SS]: --Paired-- %x v.s. %x. -- From core %x.\r\n", Payload, comp, CurrentTarget);
+              lock_release(&uart_lock);
+            }
+          }
+        }
+        
+        // Clear queue
+        if ((Opcode == 0x7F) && (Rd == 0x1F)) {
+          clear_queue(CurrentTarget);
+          ROCC_INSTRUCTION_S(1, 0x01 << (CurrentTarget-1), 0x21);
+          CurrentTarget = nxt_target(CurrentTarget, core_s, core_e);
+
+          while ((empty(&queues_header[CurrentTarget]) == 0) && 
+                 ((queueT(&queues_header[CurrentTarget]) & 0xFFFFFFFF) == 0xFFFFFFFF)) {
+            lock_acquire(&uart_lock);
+            printf("[AGG SS]: Next core, %x, is also full.\r\n", CurrentTarget);
+            lock_release(&uart_lock);
+            u_int64_t useless;
+            useless = dequeueF(&queues_header[CurrentTarget]);
+            printf("[AGG SS]: Header is %x.\r\n", useless);
+            useless = dequeueF(&queues_payload[CurrentTarget]);
+            printf("[AGG SS]: Payload is %x.\r\n", useless);
+            clear_queue(CurrentTarget);
+            ROCC_INSTRUCTION_S(1, 0x01 << (CurrentTarget-1), 0x21);
+            CurrentTarget = nxt_target(CurrentTarget, core_s, core_e);
+          }
+          clear_queue(CurrentTarget);
+        }          
+      } else {
+        enqueueF(&queues_header[from], Header);
+        enqueueF(&queues_payload[from], Payload);
+      }
+    }
+
+    if ((ghe_checkght_status() == 0x00) && (ghe_status() == GHE_EMPTY)) {
+      ghe_complete();
+      while((ghe_checkght_status() == 0x00)) {
+        // Wait big core to re-start
+      }
+      ghe_go();
     }
   }
 
 
   //=================== Post execution ===================//
   lock_acquire(&uart_lock);
-  printf("[C%x SS]: Completed, %x errors are detected.\r\n", core_id, Err_Cnt);
+  printf("[AGG SS]: Completed. No error is detected\r\n");
   lock_release(&uart_lock);
-  ghe_release();      
+  ghe_release();
   
   return 0;
 }
+

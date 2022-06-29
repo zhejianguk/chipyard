@@ -63,3 +63,9 @@ uint64_t dequeueR(dequeue *P) {
   return(x);
 }
  
+uint64_t queueT (dequeue *P)  {
+  uint64_t x;
+  x=P->data[P->front];
+  return(x);
+}
+ 

@@ -19,5 +19,6 @@ void enqueueR(dequeue *p,u_int64_t x);
 void enqueueF(dequeue *p,u_int64_t x);
 u_int64_t dequeueF(dequeue *p);
 u_int64_t dequeueR(dequeue *p);
+u_int64_t queueT(dequeue *P);
 
 #endif
