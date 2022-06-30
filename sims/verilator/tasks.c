@@ -163,6 +163,8 @@ int task_ShadowStack_S (uint64_t core_id) {
   uint64_t Payload = 0x0;
   uint64_t PC = 0x0;
   uint64_t Inst = 0x0;
+  uint64_t PayloadPush = 0x0;
+  uint64_t PayloadPull = 0x0;
   
 
   //================== Initialisation ==================//
@@ -187,31 +189,33 @@ int task_ShadowStack_S (uint64_t core_id) {
       
       // Push -- a function is called
       if (((Opcode == 0x6F) || (Opcode == 0x67)) && (Rd == 0x01)) {
+        PayloadPush = Payload >> 32;
         if (full(&shadow_payload) == 0) {
           enqueueF(&shadow_header, Header);
-          enqueueF(&shadow_payload, Payload);
+          enqueueF(&shadow_payload, PayloadPush);
           lock_acquire(&uart_lock);
-          printf("[C%x SS]: <<Pushed>> Expected: %x.                        PC: %x. Inst: %x. \r\n", core_id, Payload, PC, Inst);
+          printf("[C%x SS]: <<Pushed>> Expected: %x.                        PC: %x. Inst: %x. \r\n", core_id, PayloadPush, PC, Inst);
           lock_release(&uart_lock);
         }
       }
 
       // Pull -- a function is returned
       if ((Opcode == 0x67) && (Rd == 0x00)) {
+        PayloadPull = Payload & 0xFFFFFFFF;
         if (empty(&shadow_payload) == 1) {
-          printf("[C%x SS]: ==Empty== Uninteded: %x.                        PC: %x. Inst: %x. \r\n", core_id, Payload, PC, Inst);
+          printf("[C%x SS]: ==Empty== Uninteded: %x.                        PC: %x. Inst: %x. \r\n", core_id, PayloadPull, PC, Inst);
         } else {
           u_int64_t comp = dequeueF(&shadow_payload);
           dequeueF(&shadow_header);
           
-          if (comp != Payload){
+          if (comp != PayloadPull){
             lock_acquire(&uart_lock);
-            printf("[C%x SS]: **Error**  Expected: %x. v.s. Pulled: %x. PC: %x. Inst: %x. \r\n", core_id, comp, Payload, PC, Inst);
+            printf("[C%x SS]: **Error**  Expected: %x. v.s. Pulled: %x. PC: %x. Inst: %x. \r\n", core_id, comp, PayloadPull, PC, Inst);
             lock_release(&uart_lock);
             // return -1;
           } else {
             lock_acquire(&uart_lock);
-            printf("[C%x SS]: --Paried-- Expected: %x. v.s. Pulled: %x. PC: %x. Inst: %x. \r\n", core_id, comp, Payload, PC, Inst);
+            printf("[C%x SS]: --Paried-- Expected: %x. v.s. Pulled: %x. PC: %x. Inst: %x. \r\n", core_id, comp, PayloadPull, PC, Inst);
             lock_release(&uart_lock);
           }
         }
@@ -248,6 +252,8 @@ int task_ShadowStack_M_Pre (uint64_t core_id) {
   uint64_t Rd = 0x0;
   uint64_t RS1 = 0x0;
   uint64_t Payload = 0x0;
+  uint64_t PayloadPush = 0x0;
+  uint64_t PayloadPull = 0x0;
   uint64_t Header_index = (core_id << 32);
   uint64_t S_Header = 0x00;
   uint64_t S_Payload = 0x00;
@@ -275,12 +281,11 @@ int task_ShadowStack_M_Pre (uint64_t core_id) {
       
       // Push -- a function is called
       if (((Opcode == 0x6F) || (Opcode == 0x67)) && (Rd == 0x01)) {
+        PayloadPush = Payload >> 32;
         if (full(&shadow_payload) == 0) {
           enqueueF(&shadow_header, Inst);
-          enqueueF(&shadow_payload, Payload);
-          // lock_acquire(&uart_lock);
-          // printf("[C%x SS]: <<Pushed>> Expected: %x.                        PC: %x. Inst: %x. \r\n", core_id, Payload, Pc, Inst);
-          // lock_release(&uart_lock);
+          enqueueF(&shadow_payload, PayloadPush);
+
         } else {
           lock_acquire(&uart_lock);
           printf("[C%x SS]: **Error** shadow stack is full. \r\n", core_id);
@@ -290,25 +295,24 @@ int task_ShadowStack_M_Pre (uint64_t core_id) {
 
       // Pull -- a function is returned
       if ((Opcode == 0x67) && (Rd == 0x00)) {
+        PayloadPull = Payload & 0xFFFFFFFF;
         if (empty(&shadow_payload) == 1) {
           // Send it to AGG
           while (ghe_agg_status() == GHE_FULL) {
           }
           S_Header = Inst | Header_index;
-          S_Payload = Payload;
+          S_Payload = Payload & 0xFFFFFFFF;
           ghe_agg_push (S_Header, S_Payload);
         } else {
           u_int64_t comp = dequeueF(&shadow_payload);
           dequeueF(&shadow_header);
           
-          if (comp != Payload){
+          if (comp != PayloadPull){
             lock_acquire(&uart_lock);
-            printf("[C%x SS]: **Error**  Expected: %x. v.s. Pulled: %x. PC: %x. Inst: %x. \r\n", core_id, comp, Payload, Pc, Inst);
+            printf("[C%x SS]: **Error**  Expected: %x. v.s. Pulled: %x. PC: %x. Inst: %x. \r\n", core_id, comp, PayloadPull, Pc, Inst);
             lock_release(&uart_lock);
           } else {
-            // lock_acquire(&uart_lock);
-            // printf("[C%x SS]: --Paried-- Expected: %x. v.s. Pulled: %x. PC: %x. Inst: %x. \r\n", core_id, comp, Payload, Pc, Inst);
-            // lock_release(&uart_lock);
+            // Paried
           }
         }
       }
@@ -360,16 +364,21 @@ void clear_queue(int index)
   while (empty(&queues_header[index]) == 0) {
     uint64_t Header_q = dequeueF(&queues_header[index]);
     Header_q = Header_q & 0xFFFFFFFF;
+    uint64_t inst = Header_q & 0xFFFFFFFF;
     uint64_t Payload_q = dequeueF(&queues_payload[index]);
     uint64_t Opcode_q = Header_q & 0x7F;
     uint64_t Rd_q = (Header_q & 0xF80) >> 7;
+    uint64_t PayloadPush_q = 0x0;
+    uint64_t PayloadPull_q = 0x0;
+    
              
     if (((Opcode_q == 0x6F) || (Opcode_q == 0x67)) && (Rd_q == 0x01)) {
+      PayloadPush_q = Payload_q;
       if (full(&shadow_agg_payload) == 0) {
         enqueueF(&shadow_agg_header, Header_q);
-        enqueueF(&shadow_agg_payload, Payload_q);
+        enqueueF(&shadow_agg_payload, PayloadPush_q);
         lock_acquire(&uart_lock);
-        printf("[AGG SS]: Pushed. Addr: %x. -- Queue index: %x. \r\n", Payload_q, index);
+        printf("[AGG SS]: <<Pushed>> Expected: %x.                        Inst: %x. \r\n", PayloadPush_q, inst);
         lock_release(&uart_lock);
       } else {
         lock_acquire(&uart_lock);
@@ -379,20 +388,21 @@ void clear_queue(int index)
       }
 
     if ((Opcode_q == 0x67) && (Rd_q == 0x00)) {
+      PayloadPull_q = Payload_q;
       if (empty(&shadow_agg_payload) == 1) {
-        printf("[AGG SS]: **Error** unintended pull. Addr: %x. Inst:%x. -- Queue index: %x. \r\n", Payload_q, Header_q, index);
+        printf("[AGG SS]: **Error** unintended pull. Addr: %x. Inst:%x. -- Queue index: %x. \r\n", PayloadPull_q, Header_q, index);
       } else {
         u_int64_t comp_q = dequeueF(&shadow_agg_payload);
         dequeueF(&shadow_agg_header);
 
-        if (comp_q != Payload_q){
+        if (comp_q != PayloadPull_q){
           lock_acquire(&uart_lock);
-          printf("[AGG SS]: **Error** %x v.s. %x. Inst: %x. -- Queue index: %x. \r\n", Payload_q, comp_q, Header_q, index);
+          printf("[AGG SS]: **Error** %x v.s. %x. Inst: %x. -- Queue index: %x. \r\n", PayloadPull_q, comp_q, Header_q, index);
           lock_release(&uart_lock);
         } else {
           // Successfully paired
           lock_acquire(&uart_lock);
-          printf("[AGG SS]: --Paired-- %x v.s. %x. -- Queue index: %x. \r\n", Payload_q, comp_q);
+          printf("[AGG SS]: --Paried-- Expected: %x. v.s. Pulled: %x. Inst: %x. \r\n", comp_q, PayloadPull_q, inst);
           lock_release(&uart_lock);
         }
       }
@@ -432,6 +442,7 @@ int task_ShadowStack_M_Agg (uint64_t core_id, uint64_t core_s, uint64_t core_e) 
   lock_acquire(&uart_lock);
   printf("[AGG SS]: == Current Target: %x. == \r\n", CurrentTarget);
   lock_release(&uart_lock); 
+
   while (ghe_checkght_status() != 0x02){
     while (ghe_status() != GHE_EMPTY){
       uint64_t Header = 0x0;  
@@ -439,6 +450,8 @@ int task_ShadowStack_M_Agg (uint64_t core_id, uint64_t core_s, uint64_t core_e) 
       uint64_t Rd = 0x0;
       uint64_t RS1 = 0x0;
       uint64_t Payload = 0x0;
+      uint64_t PayloadPush = 0x0;
+      uint64_t PayloadPull = 0x0;
 
       ROCC_INSTRUCTION_D (1, Header, 0x0A);
       ROCC_INSTRUCTION_D (1, Payload, 0x0D);
@@ -451,11 +464,12 @@ int task_ShadowStack_M_Agg (uint64_t core_id, uint64_t core_s, uint64_t core_e) 
 
         // Push -- a function is pushed
         if (((Opcode == 0x6F) || (Opcode == 0x67)) && (Rd == 0x01)) {
+          PayloadPush = Payload;
           if (full(&shadow_agg_payload) == 0) {
             enqueueF(&shadow_agg_header, Header);
-            enqueueF(&shadow_agg_payload, Payload);
+            enqueueF(&shadow_agg_payload, PayloadPush);
             lock_acquire(&uart_lock);
-            printf("[AGG SS]: Pushed. Addr: %x. -- Queue index: %x. \r\n", Payload, CurrentTarget);
+            printf("[AGG SS]: <<Pushed>> Expected: %x.                        Inst: %x. \r\n", PayloadPush, inst);
             lock_release(&uart_lock);
           } else {
             lock_acquire(&uart_lock);
@@ -466,20 +480,21 @@ int task_ShadowStack_M_Agg (uint64_t core_id, uint64_t core_s, uint64_t core_e) 
 
         // Pull -- a function is pulled
         if ((Opcode == 0x67) && (Rd == 0x00)) {
+          PayloadPull = Payload; 
           if (empty(&shadow_agg_payload) == 1) {
-            printf("[AGG SS]: **Error** unintended pull. Addr: %x. Inst:%x. -- Queue index: %x. \r\n", Payload, inst, CurrentTarget);
+            printf("[AGG SS]: **Error** unintended pull. Addr: %x. Inst:%x. -- Queue index: %x. \r\n", PayloadPull, inst, CurrentTarget);
           } else {
             u_int64_t comp = dequeueF(&shadow_agg_payload);
             dequeueF(&shadow_agg_header);
           
-            if (comp != Payload){
+            if (comp != PayloadPull){
               lock_acquire(&uart_lock);
-              printf("[AGG SS]: **Error** %x v.s. %x. Inst: %x. -- Queue index: %x.\r\n", Payload, comp, inst, CurrentTarget);
+              printf("[AGG SS]: **Error** %x v.s. %x. Inst: %x. -- Queue index: %x.\r\n", PayloadPull, comp, inst, CurrentTarget);
               lock_release(&uart_lock);
             } else {
               // Successfully paired
               lock_acquire(&uart_lock);
-              printf("[AGG SS]: --Paired-- %x v.s. %x. -- Queue index: %x. \r\n", Payload, comp, CurrentTarget);
+              printf("[AGG SS]: --Paried-- Expected: %x. v.s. Pulled: %x. Inst: %x. \r\n", comp, PayloadPull, inst);
               lock_release(&uart_lock);
             }
           }
@@ -532,4 +547,3 @@ int task_ShadowStack_M_Agg (uint64_t core_id, uint64_t core_s, uint64_t core_e) 
   
   return 0;
 }
-
