@@ -13,9 +13,10 @@ char* shadow;
 /* Core_0 thread */
 int main(void)
 {
-  int *ptr = NULL;
-  int ptr_size = 128;
+
+  int sum_temp = 0;
   int sum = 0;
+
   //================== Initialisation ==================//
   // shadow memory
   shadow = shadow_malloc(32*1024*1024*sizeof(char));
@@ -57,10 +58,16 @@ int main(void)
   ght_set_status (0x01); // ght: start
 
   //===================== Execution =====================//
-  for (int i = 0; i < 70; i++)
-  {
+  for (int i = 0; i < 170; i++) {
     task_synthetic();
   }
+
+  for (int i = 0; i < 7; i++ ){
+    task_synthetic();
+    sum_temp = task_synthetic_malloc(i);
+    sum = sum + sum_temp;
+  }
+  
 
 
 

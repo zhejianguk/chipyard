@@ -82,8 +82,7 @@ int main(void)
 
   free(ptr);
 
-  printf(" ");
-  // printf("Sum = %x \r\n", sum);
+  printf("   ");
 
 
 
