@@ -278,6 +278,9 @@ int task_ShadowStack_M_Pre (uint64_t core_id) {
         if (full(&shadow_payload) == 0) {
           enqueueF(&shadow_header, Inst);
           enqueueF(&shadow_payload, Payload);
+          // lock_acquire(&uart_lock);
+          // printf("[C%x SS]: <<Pushed>> Expected: %x.                        PC: %x. Inst: %x. \r\n", core_id, Payload, Pc, Inst);
+          // lock_release(&uart_lock);
         } else {
           lock_acquire(&uart_lock);
           printf("[C%x SS]: **Error** shadow stack is full. \r\n", core_id);
@@ -300,9 +303,12 @@ int task_ShadowStack_M_Pre (uint64_t core_id) {
           
           if (comp != Payload){
             lock_acquire(&uart_lock);
-            printf("[C%x SS]: **Error** %x v.s. %x. \r\n", core_id, Payload, comp);
+            printf("[C%x SS]: **Error**  Expected: %x. v.s. Pulled: %x. PC: %x. Inst: %x. \r\n", core_id, comp, Payload, Pc, Inst);
             lock_release(&uart_lock);
           } else {
+            // lock_acquire(&uart_lock);
+            // printf("[C%x SS]: --Paried-- Expected: %x. v.s. Pulled: %x. PC: %x. Inst: %x. \r\n", core_id, comp, Payload, Pc, Inst);
+            // lock_release(&uart_lock);
           }
         }
       }

@@ -62,11 +62,14 @@ int main(void)
     task_synthetic();
   }
 
-  for (int i = 0; i < 7; i++ ){
+  for (int i = 0; i < 17; i++ ){
     task_synthetic();
     sum_temp = task_synthetic_malloc(i);
     sum = sum + sum_temp;
+    printf("   ");
   }
+  
+
   
 
 
