@@ -43,10 +43,12 @@ int main(void)
   // Func: 0x00
   // Data path: ALU + RD + RS1
   ght_cfg_filter(0x03, 0x00, 0x67, 0x05);
+
+  ghm_cfg_agg(0x01);
   
 
-  // se: 0x03, end_id: 0x04, scheduling: fp, start_id: 0x01
-  ght_cfg_se (0x03, 0x04, 0x03, 0x01);
+  // se: 0x03, end_id: 0x05, scheduling: fp, start_id: 0x02
+  ght_cfg_se (0x03, 0x05, 0x03, 0x02);
 
   // inst_index: 0x03 se: 0x03
   ght_cfg_mapper (0x03, 0b1000);
@@ -100,7 +102,7 @@ int __main(void)
   
   switch (Hart_id){
       case 0x01:
-        task_ShadowStack_M_Pre(Hart_id);
+        task_ShadowStack_M_Agg(Hart_id, 0x2, 0x5);
       break;
 
       case 0x02:
@@ -116,16 +118,9 @@ int __main(void)
       break;
 
       case 0x05:
-        task_ShadowStack_M_Agg(Hart_id, 0x1, 0x4);
+        task_ShadowStack_M_Pre(Hart_id);
       break;
 
-      case 0x06:
-        task_ShadowStack_S(Hart_id);
-      break;
-
-      case 0x07:
-        task_ShadowStack_S(Hart_id);
-      break;
 
 
 

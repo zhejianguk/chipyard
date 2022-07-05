@@ -38,6 +38,12 @@ static inline void ght_cfg_mapper (uint64_t inst_type, uint64_t ses_receiving_in
   ROCC_INSTRUCTION_SS (1, set_mapper, 0X02, 0x06);
 }
 
+static inline void ghm_cfg_agg (uint64_t agg_core_id)
+{
+  uint64_t agg_core_set;
+  agg_core_set = (((agg_core_id - 1) & 0xffff)<<16) | 0x08;
+  ROCC_INSTRUCTION_SS (1, agg_core_set, 0X02, 0x06);
+}
 
 void idle()
 {

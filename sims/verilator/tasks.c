@@ -119,7 +119,8 @@ int task_Sanitiser(uint64_t core_id) {
     while (ghe_status() != GHE_EMPTY){    
       ROCC_INSTRUCTION_D (1, Address, 0x0D);
       asm volatile("fence rw, rw;");
-
+      Address = Address & 0xFFFFFFFF;
+      
       char bits = shadow[(Address)>>7];
       
       // if(!bits) continue;
