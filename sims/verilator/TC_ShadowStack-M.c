@@ -121,7 +121,13 @@ int __main(void)
         task_ShadowStack_M_Pre(Hart_id);
       break;
 
+      case 0x06:
+        task_ShadowStack_M_Pre(Hart_id);
+      break;
 
+      case 0x07:
+        task_ShadowStack_M_Pre(Hart_id);
+      break;
 
 
       default:
